@@ -335,7 +335,7 @@ export class Batch {
 
     // First part is preamble (usually empty), last is epilogue
     for (let i = 1; i < parts.length - 1; i++) {
-      const part = parts[i].trim()
+      const part = parts[i]!.trim()
       if (!part || part === '--') continue
 
       const batchPart = this._parts[partIndex]
@@ -355,7 +355,7 @@ export class Batch {
         // Resolve or reject all changeset handles based on atomicity
         const failed = csResults.find(r => !r.ok)
         for (let j = 0; j < cs._handleSlots.length; j++) {
-          const slot = cs._handleSlots[j]
+          const slot = cs._handleSlots[j]!
           const csResult = csResults[j]
           if (failed) {
             slot.reject(new Error(`Changeset failed: ${failed.status}`))
@@ -392,7 +392,7 @@ export class Batch {
 
     // Step 3: extract status code from the HTTP status line (e.g. "HTTP/1.1 200 OK")
     const statusMatch = innerHead.match(/^HTTP\/1\.\d (\d+)/)
-    const status = statusMatch ? parseInt(statusMatch[1], 10) : 0
+    const status = statusMatch ? parseInt(statusMatch[1]!, 10) : 0
 
     // Step 4: parse body as JSON if the inner headers indicate application/json
     let parsedBody: unknown = undefined
@@ -429,7 +429,7 @@ export class Batch {
 
     // Parts 1 to length-2 are actual responses
     for (let i = 1; i < csParts.length - 1; i++) {
-      const csPart = csParts[i].trim()
+      const csPart = csParts[i]!.trim()
       if (!csPart || csPart === '--') continue
       results.push(this._parseHttpPart(csPart))
     }

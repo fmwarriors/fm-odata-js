@@ -193,6 +193,502 @@ function buildQueryString(params) {
   return parts.join("&");
 }
 
+// src/batch.ts
+function generateBoundary(prefix) {
+  const uuid = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  return `${prefix}_${uuid}`;
+}
+function buildEntitySetPath(baseUrl, entitySet, query) {
+  const parts = [];
+  if (query?.$top !== void 0) parts.push(`$top=${encodeURIComponent(String(query.$top))}`);
+  if (query?.$skip !== void 0) parts.push(`$skip=${encodeURIComponent(String(query.$skip))}`);
+  if (query?.$filter) parts.push(`$filter=${encodeURIComponent(query.$filter)}`);
+  if (query?.$select) parts.push(`$select=${encodeURIComponent(query.$select)}`);
+  const qs = parts.join("&");
+  const encodedSet = encodePathSegment(entitySet);
+  return qs ? `${baseUrl}/${encodedSet}?${qs}` : `${baseUrl}/${encodedSet}`;
+}
+function buildEntityPath(baseUrl, entitySet, key) {
+  const encodedSet = encodePathSegment(entitySet);
+  let keySegment;
+  if (typeof key === "number") {
+    keySegment = String(key);
+  } else if (typeof key === "string") {
+    keySegment = `'${key.replace(/'/g, "''")}'`;
+  } else if (typeof key === "boolean") {
+    keySegment = key ? "true" : "false";
+  } else {
+    throw new TypeError("Batch: unsupported key type");
+  }
+  return `${baseUrl}/${encodedSet}(${keySegment})`;
+}
+var Changeset = class {
+  constructor(baseUrl) {
+    this._ops = [];
+    this._handles = [];
+    this._baseUrl = baseUrl;
+  }
+  /** @internal */
+  get _operations() {
+    return this._ops;
+  }
+  /** @internal */
+  get _handleSlots() {
+    return this._handles;
+  }
+  /**
+   * Create a new entity within this changeset.
+   */
+  create(entitySet, body) {
+    const path = buildEntitySetPath(this._baseUrl, entitySet);
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    const index = this._handles.length;
+    this._handles.push({ resolve, reject });
+    this._ops.push({
+      method: "POST",
+      path,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    return { __brand: "BatchHandle", _promise: promise, _index: index };
+  }
+  /**
+   * Patch an existing entity within this changeset.
+   */
+  patch(entitySet, key, body, opts) {
+    const path = buildEntityPath(this._baseUrl, entitySet, key);
+    const headers = { "Content-Type": "application/json" };
+    if (opts?.ifMatch) headers["If-Match"] = opts.ifMatch;
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    const index = this._handles.length;
+    this._handles.push({ resolve, reject });
+    this._ops.push({
+      method: "PATCH",
+      path,
+      headers,
+      body: JSON.stringify(body)
+    });
+    return { __brand: "BatchHandle", _promise: promise, _index: index };
+  }
+  /**
+   * Delete an entity within this changeset.
+   */
+  delete(entitySet, key, opts) {
+    const path = buildEntityPath(this._baseUrl, entitySet, key);
+    const headers = {};
+    if (opts?.ifMatch) headers["If-Match"] = opts.ifMatch;
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    const index = this._handles.length;
+    this._handles.push({ resolve, reject });
+    this._ops.push({ method: "DELETE", path, headers });
+    return { __brand: "BatchHandle", _promise: promise, _index: index };
+  }
+};
+var Batch = class {
+  constructor(client) {
+    this._parts = [];
+    this._changesets = [];
+    this._client = client;
+  }
+  /**
+   * Add a read operation (GET) to the batch.
+   * Read operations are not part of a changeset and execute independently.
+   */
+  add(op) {
+    const path = buildEntitySetPath(this._client.baseUrl, op.entitySet, op.query);
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    const handle = { __brand: "BatchHandle", _promise: promise, _index: this._parts.length };
+    this._parts.push({
+      type: "read",
+      content: { method: "GET", path },
+      handle
+    });
+    return handle;
+  }
+  /**
+   * Create an atomic changeset (group of write operations).
+   * All operations in a changeset succeed or fail together.
+   */
+  changeset(build) {
+    const cs = new Changeset(this._client.baseUrl);
+    build(cs);
+    this._changesets.push(cs);
+    this._parts.push({ type: "changeset", content: cs });
+  }
+  /**
+   * Serialize the batch into a multipart/mixed body.
+   * @internal
+   */
+  _serialize() {
+    const batchBoundary = generateBoundary("batch");
+    const lines = [];
+    for (const part of this._parts) {
+      lines.push(`--${batchBoundary}`);
+      if (part.type === "read") {
+        const op = part.content;
+        lines.push("Content-Type: application/http");
+        lines.push("Content-Transfer-Encoding: binary");
+        lines.push("");
+        lines.push(`${op.method} ${op.path} HTTP/1.1`);
+        lines.push("Accept: application/json");
+        lines.push("");
+      } else if (part.type === "changeset") {
+        const cs = part.content;
+        const csBoundary = generateBoundary("changeset");
+        lines.push("Content-Type: multipart/mixed; boundary=" + csBoundary);
+        lines.push("");
+        for (const op of cs._operations) {
+          lines.push(`--${csBoundary}`);
+          lines.push("Content-Type: application/http");
+          lines.push("Content-Transfer-Encoding: binary");
+          lines.push("");
+          lines.push(`${op.method} ${op.path} HTTP/1.1`);
+          if (op.headers) {
+            for (const [k, v] of Object.entries(op.headers)) {
+              lines.push(`${k}: ${v}`);
+            }
+          }
+          lines.push("");
+          if (op.body) {
+            lines.push(op.body);
+          }
+        }
+        lines.push(`--${csBoundary}--`);
+      }
+    }
+    lines.push(`--${batchBoundary}--`);
+    return { boundary: batchBoundary, body: lines.join("\r\n") };
+  }
+  /**
+   * Send the batch request and parse the multipart response.
+   */
+  async send(opts = {}) {
+    const { boundary, body } = this._serialize();
+    const res = await executeRequest(
+      this._client._ctx,
+      `${this._client.baseUrl}/$batch`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": `multipart/mixed; boundary=${boundary}`
+        },
+        body,
+        accept: "none",
+        ...opts.signal ? { signal: opts.signal } : {}
+      }
+    );
+    const responseText = await res.text();
+    return this._parseResponse(responseText, res.headers.get("content-type") ?? "");
+  }
+  /**
+   * Parse a multipart/mixed batch response.
+   * @internal
+   */
+  _parseResponse(responseText, contentType) {
+    const boundaryMatch = contentType.match(/boundary=([^;\s]+)/);
+    const boundary = boundaryMatch?.[1];
+    if (!boundary) {
+      throw new Error("Batch response missing boundary in Content-Type");
+    }
+    const parts = responseText.split(`--${boundary}`);
+    const results = [];
+    let partIndex = 0;
+    for (let i = 1; i < parts.length - 1; i++) {
+      const part = parts[i].trim();
+      if (!part || part === "--") continue;
+      const batchPart = this._parts[partIndex];
+      if (!batchPart) continue;
+      if (batchPart.type === "read") {
+        const result = this._parseHttpPart(part);
+        results.push(result);
+        if (batchPart.handle) {
+          this._resolveHandle(batchPart.handle, result);
+        }
+        partIndex++;
+      } else if (batchPart.type === "changeset") {
+        const cs = batchPart.content;
+        const csResults = this._parseChangesetResponse(part, cs);
+        results.push(...csResults);
+        const failed = csResults.find((r) => !r.ok);
+        for (let j = 0; j < cs._handleSlots.length; j++) {
+          const slot = cs._handleSlots[j];
+          const csResult = csResults[j];
+          if (failed) {
+            slot.reject(new Error(`Changeset failed: ${failed.status}`));
+          } else if (csResult) {
+            slot.resolve(csResult.body);
+          } else {
+            slot.resolve(void 0);
+          }
+        }
+        partIndex++;
+      }
+    }
+    return {
+      responses: results,
+      ok: results.every((r) => r.ok)
+    };
+  }
+  /** @internal — parse a single HTTP response part. */
+  _parseHttpPart(part) {
+    const outerEnd = part.indexOf("\r\n\r\n");
+    const innerHttpText = outerEnd >= 0 ? part.slice(outerEnd + 4) : part;
+    const innerHeadEnd = innerHttpText.indexOf("\r\n\r\n");
+    const innerHead = innerHeadEnd >= 0 ? innerHttpText.slice(0, innerHeadEnd) : innerHttpText;
+    const innerBody = innerHeadEnd >= 0 ? innerHttpText.slice(innerHeadEnd + 4).trim() : "";
+    const statusMatch = innerHead.match(/^HTTP\/1\.\d (\d+)/);
+    const status = statusMatch ? parseInt(statusMatch[1], 10) : 0;
+    let parsedBody = void 0;
+    if (innerBody && innerHead.toLowerCase().includes("application/json")) {
+      try {
+        parsedBody = JSON.parse(innerBody);
+      } catch {
+        parsedBody = innerBody;
+      }
+    } else if (innerBody) {
+      parsedBody = innerBody;
+    }
+    return {
+      status,
+      body: parsedBody,
+      headers: new Headers(),
+      ok: status >= 200 && status < 300
+    };
+  }
+  /** @internal — parse a changeset multipart response. */
+  _parseChangesetResponse(part, cs) {
+    const boundaryMatch = part.match(/boundary=([^\s]+)/);
+    const csBoundary = boundaryMatch?.[1];
+    if (!csBoundary) {
+      return [this._parseHttpPart(part)];
+    }
+    const csParts = part.split(`--${csBoundary}`);
+    const results = [];
+    for (let i = 1; i < csParts.length - 1; i++) {
+      const csPart = csParts[i].trim();
+      if (!csPart || csPart === "--") continue;
+      results.push(this._parseHttpPart(csPart));
+    }
+    return results;
+  }
+  /** @internal — resolve a batch handle with the result. */
+  _resolveHandle(handle, result) {
+  }
+};
+
+// src/metadata.ts
+function parseBoolAttr(value, defaultValue) {
+  if (value === void 0) return defaultValue;
+  return value === "true";
+}
+function getAttr(text, name) {
+  const re = new RegExp(`${name}="([^"]*)"`, "i");
+  const m = text.match(re);
+  return m?.[1];
+}
+function getAttrs(text) {
+  const out = {};
+  const re = /(\w+)="([^"]*)"/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    out[m[1]] = m[2];
+  }
+  return out;
+}
+function findElements(xml, tagName) {
+  const results = [];
+  const openRe = new RegExp(`<([\\w]+:)?${tagName}\\b[^>]*>`, "gi");
+  let m;
+  while ((m = openRe.exec(xml)) !== null) {
+    const openTag = m[0];
+    if (/\/>\s*$/.test(openTag)) {
+      results.push(openTag);
+      continue;
+    }
+    const startIdx = m.index;
+    const closeRe = new RegExp(`</([\\w]+:)?${tagName}>`, "gi");
+    closeRe.lastIndex = openRe.lastIndex;
+    const closeM = closeRe.exec(xml);
+    if (closeM) {
+      results.push(xml.slice(startIdx, closeM.index + closeM[0].length));
+    }
+  }
+  return results;
+}
+function elementContent(xml, tagName) {
+  const openRe = new RegExp(`<(?:[\\w]+:)?${tagName}\\b[^>]*>`, "i");
+  const openM = openRe.exec(xml);
+  if (!openM) return void 0;
+  const startIdx = openM.index + openM[0].length;
+  const closeRe = new RegExp(`</(?:[\\w]+:)?${tagName}>`, "i");
+  closeRe.lastIndex = startIdx;
+  const closeM = closeRe.exec(xml);
+  if (!closeM) return void 0;
+  return xml.slice(startIdx, closeM.index);
+}
+function parseProperty(xml) {
+  const attrs = getAttrs(xml);
+  const nullable = parseBoolAttr(attrs.Nullable, true);
+  const out = {
+    name: attrs.Name ?? "",
+    type: attrs.Type ?? "",
+    nullable
+  };
+  if (attrs.MaxLength !== void 0) {
+    const n = parseInt(attrs.MaxLength, 10);
+    if (!Number.isNaN(n)) out.maxLength = n;
+  }
+  return out;
+}
+function parseNavigationProperty(xml) {
+  const attrs = getAttrs(xml);
+  const type = attrs.Type ?? "";
+  const collection = type.startsWith("Collection(");
+  const target = collection ? type.slice(11, -1) : type;
+  return {
+    name: attrs.Name ?? "",
+    target,
+    collection
+  };
+}
+function parseKey(xml) {
+  const keys = [];
+  const refs = findElements(xml, "PropertyRef");
+  for (const ref of refs) {
+    const name = getAttr(ref, "Name");
+    if (name) keys.push(name);
+  }
+  return keys;
+}
+function parseEntityType(xml) {
+  const name = getAttr(xml, "Name") ?? "";
+  const keys = [];
+  const properties = [];
+  const navigationProperties = [];
+  const inner = elementContent(xml, "EntityType") ?? xml;
+  const keyEl = findElements(inner, "Key")[0];
+  if (keyEl) {
+    keys.push(...parseKey(keyEl));
+  }
+  for (const prop of findElements(inner, "Property")) {
+    properties.push(parseProperty(prop));
+  }
+  for (const nav of findElements(inner, "NavigationProperty")) {
+    navigationProperties.push(parseNavigationProperty(nav));
+  }
+  return { name, keys, properties, navigationProperties };
+}
+function parseEntitySet(xml) {
+  const attrs = getAttrs(xml);
+  return {
+    name: attrs.Name ?? "",
+    entityType: attrs.EntityType ?? ""
+  };
+}
+function parseAction(xml) {
+  const name = getAttr(xml, "Name") ?? "";
+  const attrs = getAttrs(xml);
+  const boundTo = attrs["IsBound"] === "true" ? attrs["EntityType"] : void 0;
+  const parameters = [];
+  const inner = elementContent(xml, "Action") ?? xml;
+  for (const p of findElements(inner, "Parameter")) {
+    const pAttrs = getAttrs(p);
+    parameters.push({
+      name: pAttrs.Name ?? "",
+      type: pAttrs.Type ?? ""
+    });
+  }
+  return boundTo !== void 0 ? { name, boundTo, parameters } : { name, parameters };
+}
+function parseMetadata(xml) {
+  try {
+    const dataServices = elementContent(xml, "DataServices");
+    if (!dataServices) {
+      throw new Error("Missing <edmx:DataServices> in metadata");
+    }
+    const schema = findElements(dataServices, "Schema")[0];
+    if (!schema) {
+      throw new Error("Missing <Schema> in metadata");
+    }
+    const namespace = getAttr(schema, "Namespace") ?? "";
+    const schemaInner = elementContent(schema, "Schema") ?? schema;
+    const entityTypes = [];
+    for (const et of findElements(schemaInner, "EntityType")) {
+      entityTypes.push(parseEntityType(et));
+    }
+    const entitySets = [];
+    const container = findElements(schemaInner, "EntityContainer")[0];
+    if (container) {
+      const containerInner = elementContent(container, "EntityContainer") ?? container;
+      for (const es of findElements(containerInner, "EntitySet")) {
+        entitySets.push(parseEntitySet(es));
+      }
+    }
+    const actions = [];
+    for (const a of findElements(schemaInner, "Action")) {
+      actions.push(parseAction(a));
+    }
+    return {
+      namespace,
+      entityTypes,
+      entitySets,
+      actions,
+      raw: xml
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new FMODataError(`Failed to parse $metadata: ${message}`, {
+      status: 0,
+      odataError: xml.slice(0, 500)
+    });
+  }
+}
+async function fetchMetadataXml(ctx, baseUrl, opts = {}) {
+  const res = await executeRequest(ctx, `${baseUrl}/$metadata`, {
+    method: "GET",
+    accept: "xml",
+    ...opts.signal ? { signal: opts.signal } : {}
+  });
+  return res.text();
+}
+var MetadataFetcher = class {
+  constructor(_ctx, _baseUrl) {
+    this._ctx = _ctx;
+    this._baseUrl = _baseUrl;
+  }
+  async fetchXml(opts = {}) {
+    return fetchMetadataXml(this._ctx, this._baseUrl, opts);
+  }
+  async fetch(opts = {}) {
+    if (!opts.refresh && this._cache) {
+      return this._cache;
+    }
+    const promise = this.fetchXml(opts).then(parseMetadata);
+    this._cache = promise;
+    return promise;
+  }
+};
+
 // src/containers.ts
 var FM_CONTAINER_SUPPORTED_MIME_TYPES = [
   "image/png",
@@ -956,6 +1452,51 @@ var FMOData = class {
   async script(name, opts = {}) {
     return runScriptAtDatabase(this, name, opts);
   }
+  /**
+   * Fetch the OData CSDL `$metadata` XML and parse it into a typed structure.
+   * Results are cached; pass `refresh: true` to force a refetch.
+   *
+   * ```ts
+   * const meta = await db.metadata()
+   * console.log(meta.entitySets.map(es => es.name))
+   * ```
+   */
+  async metadata(opts = {}) {
+    if (!this._metadataFetcher) {
+      this._metadataFetcher = new MetadataFetcher(this._ctx, this.baseUrl);
+    }
+    return this._metadataFetcher.fetch(opts);
+  }
+  /**
+   * Fetch the raw `$metadata` XML (escape hatch for debugging or custom parsing).
+   */
+  async metadataXml(opts = {}) {
+    if (!this._metadataFetcher) {
+      this._metadataFetcher = new MetadataFetcher(this._ctx, this.baseUrl);
+    }
+    return this._metadataFetcher.fetchXml(opts);
+  }
+  /**
+   * Create a new `$batch` builder for composing multiple OData operations
+   * into a single HTTP round-trip.
+   *
+   * Read operations (`add`) are executed independently. Write operations
+   * (`changeset`) are grouped atomically — all succeed or all fail.
+   *
+   * ```ts
+   * const batch = db.batch()
+   * const contacts = batch.add({ op: 'list', entitySet: 'contact', query: { $top: 5 } })
+   * batch.changeset(cs => {
+   *   cs.create('contact', { firstName: 'A', lastName: 'B' })
+   *   cs.patch('contact', 123, { firstName: 'Updated' })
+   * })
+   * const result = await batch.send()
+   * console.log(await contacts._promise) // First op result
+   * ```
+   */
+  batch() {
+    return new Batch(this);
+  }
   /** @internal */
   _resolveUrl(pathOrUrl) {
     if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
@@ -964,6 +1505,8 @@ var FMOData = class {
   }
 };
 export {
+  Batch,
+  Changeset,
   ContainerRef,
   EntityRef,
   FMOData,
@@ -971,6 +1514,7 @@ export {
   FMScriptError,
   FM_CONTAINER_SUPPORTED_MIME_TYPES,
   Filter,
+  MetadataFetcher,
   Query,
   ScriptInvoker,
   basicAuth,

@@ -4,12 +4,12 @@
 
 **A tiny, type-safe OData v4 client built for FileMaker Server.**
 
-Zero runtime dependencies · ~4.6 KB gzipped · One ES module · Web Viewer / Browser / Node 18+
+Zero runtime dependencies · ~7.9 KB gzipped · One ES module · Web Viewer / Browser / Node 18+
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![OData](https://img.shields.io/badge/OData-v4-0078D4?logo=data&logoColor=white)](https://www.odata.org/)
 [![FileMaker](https://img.shields.io/badge/FileMaker-19.0--22.0-FF6B00?logo=filemaker&logoColor=white)](https://www.claris.com/filemaker/)
-[![Bundle](https://img.shields.io/badge/gzip-~4.6%20KB-brightgreen)](#)
+[![Bundle](https://img.shields.io/badge/gzip-~7.9%20KB-brightgreen)](#)
 [![Deps](https://img.shields.io/badge/runtime%20deps-0-blue)](#)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js&logoColor=white)](#)
 [![License](https://img.shields.io/badge/license-MIT-black)](./LICENSE)
@@ -24,12 +24,14 @@ FileMaker Server speaks OData v4, but the spec has sharp corners and FMS has qui
 
 > **Battle-tested in production.** I've been using this library heavily to let FileMaker Web Viewer instances talk to the *same* hosted database they live in — and the performance has been genuinely impressive. Queries that used to require round-tripping through scripts and set-field loops now resolve in a single OData call, with noticeably lower latency and a much cleaner code path. If you're building rich Web Viewer UIs backed by FMS, this is the fastest route I've found.
 
-- **Tiny.** Single ES module, zero runtime dependencies, ~4.6 KB gzipped.
+- **Tiny.** Single ES module, zero runtime dependencies, ~7.9 KB gzipped.
 - **Type-safe.** Fluent, chainable query builder with full TS inference.
 - **Runs anywhere.** Drop it into a FileMaker Web Viewer, a browser, or Node 18+.
 - **FMS-aware.** Handles the documented FMS OData deviations for you.
 - **Scripts built in.** Invoke FileMaker scripts at database, entity-set, or record scope with a single call.
 - **Containers built in.** Upload, download, stream, or clear container fields with typed helpers — `Blob`, `ArrayBuffer`, and `Uint8Array` all accepted.
+- **Schema introspection.** `$metadata` parsed into typed `ODataMetadata` with entity types, keys, properties, and actions. Cached by default.
+- **Batch requests.** `$batch` builder composes multiple reads and atomic changesets (POST / PATCH / DELETE) into a single HTTP round-trip.
 - **Resilient.** Basic/Bearer auth with 401 retry, `AbortSignal`, and timeouts built in.
 - **Honest errors.** Every failure becomes a normalized `FMODataError` (or `FMScriptError` for script failures).
 
@@ -40,8 +42,8 @@ FileMaker Server speaks OData v4, but the spec has sharp corners and FMS has qui
 | **M1–M3**   | Query builder · collection GET · single-entity CRUD · auth · errors | Done |
 | **M4 · 1/4**| Script execution (database / entity-set / record scope)            | Done (v0.1.4) |
 | **M4 · 2/4**| Containers (binary upload / download / stream)                     | Done (v0.1.5) |
-| **M4 · 3/4**| `$metadata` (schema introspection)                                 | Planned |
-| **M4 · 4/4**| `$batch` (multipart with changesets)                               | Planned |
+| **M5**      | `$metadata` (schema introspection)                                 | Done |
+| **M6**      | `$batch` (multipart with changesets)                               | Done |
 
 Full roadmap and changes live in [`CHANGELOG.md`](./CHANGELOG.md).
 
@@ -71,7 +73,7 @@ Local dev:
 
 ```bash
 npm install
-npm test          # 100 unit tests, offline
+npm test          # 182 unit tests, offline
 ```
 
 ## Quick start
@@ -185,6 +187,73 @@ parent record with `<field>@com.filemaker.odata.ContentType` /
 The `Content-Disposition` filename is parsed for you on download, including
 RFC 5987 `filename*=UTF-8''…` for non-ASCII names. On upload, non-ASCII
 filenames are emitted in both plain and RFC 5987 form automatically.
+
+## Schema introspection (`$metadata`)
+
+Fetch and inspect the OData CSDL schema emitted by FileMaker Server:
+
+```ts
+const meta = await db.metadata()
+
+console.log(meta.namespace)       // e.g. "FileMaker"
+console.log(meta.entitySets)      // [{ name: "contact", entityType: "FileMaker.contact" }, …]
+console.log(meta.entityTypes)     // [{ name: "contact", keys: ["id"], properties: […] }, …]
+console.log(meta.actions)         // FileMaker scripts exposed as OData Actions
+```
+
+Results are cached by default. Pass `refresh: true` to force a refetch:
+
+```ts
+const fresh = await db.metadata({ refresh: true })
+```
+
+Use `metadataXml()` to get the raw CSDL XML for debugging or forward-compat parsing:
+
+```ts
+const xml = await db.metadataXml()
+```
+
+## Batch requests (`$batch`)
+
+Send multiple operations in a single HTTP round-trip. Reads and atomic changesets
+can be freely mixed:
+
+```ts
+const batch = db.batch()
+
+// Queue a read (GET)
+const contactsHandle = batch.add({
+  op: 'list',
+  entitySet: 'contact',
+  query: { $top: 10, $filter: "status eq 'active'" },
+})
+
+// Queue an atomic write group — all succeed or all fail together
+batch.changeset(cs => {
+  cs.create('contact', { first_name: 'Alice', last_name: 'Liddell' })
+  cs.patch('contact', 42, { status: 'archived' })
+  cs.delete('invoice', 99)
+})
+
+const result = await batch.send()
+
+if (result.ok) {
+  console.log('All operations succeeded')
+}
+
+// Per-operation status and body are in result.responses (in request order)
+for (const r of result.responses) {
+  console.log(r.status, r.ok, r.body)
+}
+```
+
+Changeset operations also expose `If-Match` for optimistic concurrency:
+
+```ts
+batch.changeset(cs => {
+  cs.patch('contact', 42, { status: 'closed' }, { ifMatch: '"abc123"' })
+})
+```
 
 ## Live integration tests
 

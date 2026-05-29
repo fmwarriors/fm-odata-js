@@ -10,8 +10,8 @@
  */
 
 import { FMODataError } from './errors.js'
-import { executeRequest } from './http.js'
-import type { HttpClientContext, RequestOptions } from './types.js'
+import { executeRequest, type HttpClientContext } from './http.js'
+import type { RequestOptions } from './types.js'
 
 /** Property on an entity type (field in FileMaker). */
 export interface EdmProperty {
@@ -77,7 +77,8 @@ function getAttrs(text: string): Record<string, string> {
   const re = /(\w+)="([^"]*)"/g
   let m: RegExpExecArray | null
   while ((m = re.exec(text)) !== null) {
-    out[m[1]] = m[2]
+    // m[1] and m[2] are always defined when the regex matches
+    out[m[1]!] = m[2]!
   }
   return out
 }
@@ -216,7 +217,7 @@ function parseAction(xml: string): EdmAction {
     })
   }
 
-  return { name, boundTo, parameters }
+  return boundTo !== undefined ? { name, boundTo, parameters } : { name, parameters }
 }
 
 /**

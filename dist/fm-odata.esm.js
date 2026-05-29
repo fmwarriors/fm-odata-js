@@ -197,6 +197,12 @@ function buildQueryString(params) {
 }
 
 // src/batch.ts
+function utf8ByteLength(str) {
+  if (typeof TextEncoder !== "undefined") {
+    return new TextEncoder().encode(str).byteLength;
+  }
+  return Buffer.byteLength(str, "utf8");
+}
 function generateBoundary(prefix) {
   const uuid = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   return `${prefix}_${uuid}`;
@@ -353,8 +359,6 @@ var Batch = class {
         lines.push("Content-Transfer-Encoding: binary");
         lines.push("");
         lines.push(`${op.method} ${op.path} HTTP/1.1`);
-        lines.push("Accept: application/json");
-        lines.push("");
       } else if (part.type === "changeset") {
         const cs = part.content;
         const csBoundary = generateBoundary("changeset");
@@ -371,8 +375,9 @@ var Batch = class {
               lines.push(`${k}: ${v}`);
             }
           }
-          lines.push("");
           if (op.body) {
+            lines.push(`Content-Length: ${utf8ByteLength(op.body)}`);
+            lines.push("");
             lines.push(op.body);
           }
         }

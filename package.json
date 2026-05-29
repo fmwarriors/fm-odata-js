@@ -21,10 +21,11 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "npm run build:types && npm run build:esm && npm run build:min",
+    "build": "npm run build:types && npm run build:esm && npm run build:min && npm run build:iife",
     "build:types": "tsc -p tsconfig.build.json",
     "build:esm": "esbuild src/index.ts --bundle --format=esm --target=es2020 --outfile=dist/fm-odata.esm.js",
     "build:min": "esbuild src/index.ts --bundle --format=esm --target=es2020 --minify --outfile=dist/fm-odata.esm.min.js",
+    "build:iife": "esbuild src/index.ts --bundle --format=iife --global-name=FMODataLib --target=es2017 --minify --outfile=dist/fm-odata.iife.min.js",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:watch": "vitest",

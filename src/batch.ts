@@ -12,6 +12,29 @@
  * The implementation generates unique boundaries using crypto.randomUUID()
  * (available in Node 18+ and modern browsers), composes the multipart
  * body, and parses the multipart response back into per-operation results.
+ *
+ * ⚠️  KNOWN FMS LIMITATIONS (pending investigation — tested against FMS 21.x):
+ *
+ * 1. GET operations must NOT appear before a changeset.
+ *    Placing a read op before a changeset causes FMS to return HTTP 400:
+ *    "Expected batch boundary at 'Content-Type: applic...'".
+ *    FMS's parser appears to misread the changeset's nested boundary as a
+ *    batch-level boundary when GETs precede it.
+ *    → Workaround: always add changesets before reads in the batch.
+ *
+ * 2. Multiple consecutive GET operations return only one fewer response than
+ *    expected — the last GET in a sequence is silently dropped by FMS.
+ *    E.g. three GETs → only two responses.
+ *    → Workaround: limit batches to one read op at the end, or accept the loss.
+ *
+ * 3. POST/PATCH within a changeset requires an explicit Content-Length header
+ *    on the inner HTTP request (FMS cannot determine body length from multipart
+ *    structure alone). This is handled by utf8ByteLength() during serialisation.
+ *
+ * These constraints differ from the OData 4.01 spec and the official Claris
+ * documentation examples. They were discovered empirically. Batch support in
+ * this library is functional but limited to: changeset (optional) followed by
+ * at most one read operation per batch call.
  */
 
 import type { FMOData } from './client.js'
@@ -51,6 +74,15 @@ export interface BatchResult {
   responses: BatchOpResult[]
   /** True if all responses have status < 400. */
   ok: boolean
+}
+
+/** @internal — byte length of a string in UTF-8. */
+function utf8ByteLength(str: string): number {
+  if (typeof TextEncoder !== 'undefined') {
+    return new TextEncoder().encode(str).byteLength
+  }
+  // Node.js fallback
+  return Buffer.byteLength(str, 'utf8')
 }
 
 /** @internal — generate a unique boundary string. */
@@ -261,8 +293,6 @@ export class Batch {
         lines.push('Content-Transfer-Encoding: binary')
         lines.push('')
         lines.push(`${op.method} ${op.path} HTTP/1.1`)
-        lines.push('Accept: application/json')
-        lines.push('')
       } else if (part.type === 'changeset') {
         const cs = part.content as Changeset
         const csBoundary = generateBoundary('changeset')
@@ -280,8 +310,9 @@ export class Batch {
               lines.push(`${k}: ${v}`)
             }
           }
-          lines.push('')
           if (op.body) {
+            lines.push(`Content-Length: ${utf8ByteLength(op.body)}`)
+            lines.push('')
             lines.push(op.body)
           }
         }

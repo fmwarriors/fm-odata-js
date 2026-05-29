@@ -14,4 +14,7 @@ test-results/
 .env.local
 .env.*.local
 
+# Wiki publish clone (separate git repo — not part of main repo)
+wiki-publish/
+
 # dist/ is intentionally committed per project plan

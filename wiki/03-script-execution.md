@@ -51,7 +51,20 @@ FileMaker scripts can be executed at three distinct scope levels. The scope dete
 
 For details on how context is established in FileMaker, see [Script Scopes and FMScriptError](#3.2).
 
-Sources: [src/scripts.ts:4-13](), [src/scripts.ts:88-100]()
+### FMSID Invocation (v26+)
+
+On FileMaker Server 2026 (v26+) or later, scripts can also be invoked by their immutable FMSID instead of name. This is more robust because the ID survives script renames and database migrations.
+
+```typescript
+// Check if FMSID invocation is supported
+if (await db.hasFeature('scriptsByFMSID')) {
+  // Invoke by FMSID (immutable across renames)
+  const result = await db.scriptById(42, { parameter: 'hello' })
+  console.log(result.scriptResult, result.scriptError)
+}
+```
+
+Sources: [src/client.ts:84-86](), [src/scripts.ts]()
 
 ---
 

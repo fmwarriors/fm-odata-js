@@ -21,7 +21,7 @@
 4. [FileMaker Server Quirks](04-filemaker-server-quirks.md)
    1. [Authentication Quirks](04.1-authentication-quirks.md)
    2. [Count, Date, and TLS Quirks](04.2-count-date-and-tls-quirks.md)
-5. [Future Milestones (M4–M6)](05-future-milestones.md)
+5. [Milestones & Release History](05-future-milestones.md)
    1. [Containers (M4)](05.1-containers-m4.md)
    2. [Metadata and Batch (M5–M6)](05.2-metadata-and-batch-m5-m6.md)
 6. [Examples and Integration](06-examples-and-integration.md)

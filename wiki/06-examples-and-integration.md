@@ -36,7 +36,7 @@ graph TD
     ODataAPI -- "reads/writes" --> FMData
     ODataAPI -- "triggers" --> FMScripts
 ```
-Sources: [examples/consumer-node/README.md:1-8](), [examples/webviewer/README.md:1-9]()
+Sources: [examples/consumer-node/README.md:1-15](), [examples/webviewer/README.md:1-17](), [README.md:340-353]()
 
 ---
 
@@ -45,7 +45,7 @@ Sources: [examples/consumer-node/README.md:1-8](), [examples/webviewer/README.md
 The Node.js example is located in `examples/consumer-node`. It demonstrates how to use the library as a dependency in a backend or CLI environment. This implementation highlights the library's zero-dependency design and its compatibility with standard Node.js environment variables.
 
 ### Key Features
-*   **Environment Configuration**: Uses `node --env-file` or `export` to manage credentials like `FM_ODATA_HOST` and `FM_ODATA_PASSWORD` [examples/consumer-node/README.md:34-48]().
+*   **Environment Configuration**: Uses `node --env-file` or `export` to manage credentials via standardized env vars (`FM_SERVER`, `FM_DATABASE`, `FM_USER`, `FM_PASSWORD`, `FM_VERIFY_SSL`). Legacy `FM_ODATA_*` names are accepted as fallbacks [examples/consumer-node/README.md:38-57]().
 *   **Query Pipeline**: Demonstrates the fluent API for fetching data, specifically the `from().top().get()` pattern [examples/consumer-node/README.md:95-96]().
 *   **Script Execution**: Shows how to invoke a FileMaker script at the database scope and handle specific error codes, such as FileMaker error `104` (script missing) [examples/consumer-node/README.md:68-80]().
 *   **TypeScript Support**: Provides a blueprint for using interfaces to provide type safety for OData results [examples/consumer-node/README.md:86-98]().
@@ -77,7 +77,7 @@ The following table summarizes the differences between the two reference impleme
 | **Runtime** | Node.js (v20.6+) | Browser / Web Kit |
 | **Import Method** | `file:` dependency / npm | CDN (jsDelivr) or Inlined |
 | **Auth Strategy** | `basicAuth()` via Env Vars | `basicAuth()` via UI Input |
-| **TLS Handling** | `FM_ODATA_INSECURE_TLS=1` | Browser Certificate Exception |
+| **TLS Handling** | `FM_VERIFY_SSL=0` | Browser Certificate Exception |
 | **Primary Use Case** | Automation / Backend Sync | In-layout Interactive UI |
 
 **Code Entity Association**
@@ -110,5 +110,5 @@ Sources: [examples/consumer-node/README.md:87-98](), [examples/webviewer/README.
 
 ---
 **Sources:**
-*   [examples/consumer-node/README.md:1-101]()
-*   [examples/webviewer/README.md:1-82]()
+*   [examples/consumer-node/README.md:1-274]()
+*   [examples/webviewer/README.md:1-180]()

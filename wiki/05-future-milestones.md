@@ -1,17 +1,17 @@
-# Completed Milestones (M4–M6)
+# Milestones & Release History
 
-This page provides a high-level overview of the features delivered in milestones M4 through M6. These milestones expanded the library's capabilities beyond basic CRUD and script execution to include binary data handling, schema introspection, and performance optimizations via request batching. All three milestones are now complete.
+This page summarizes the completed milestones and release history for `fm-odata-js`.
 
-## Milestone Summary
+## Release Summary
 
-| Milestone | Feature | Version | Status |
-| :--- | :--- | :--- | :--- |
-| **M4 · Scripts** | Script execution at database / entity-set / record scope | v0.1.4 | ✓ Complete |
-| **M4 · Containers** | Read, upload, stream, and delete binary container fields | v0.1.5 | ✓ Complete |
-| **M5** | `$metadata` — fetch and parse the EDMX/CSDL XML schema | [Unreleased] | ✓ Complete |
-| **M6** | `$batch` — multipart requests with atomic changesets | [Unreleased] | ✓ Complete |
+| Version | Features | Status |
+| :--- | :--- | :--- |
+| **v0.2.0** | Spec alignment: version detection, `$apply`, FMSID scripts, `$ref`, FMID auth, IIFE bundle | ✓ Released |
+| **v0.1.6** | M4 containers, M5 metadata, M6 batch | ✓ Released |
+| **v0.1.4** | M3 script execution | ✓ Released |
+| **v0.1.1** | M1-M2 CRUD queries | ✓ Released |
 
-Sources: [CHANGELOG.md]()
+Sources: [CHANGELOG.md:1-135](), [package.json:3-3]()
 
 ### Feature Architecture Mapping
 
@@ -104,4 +104,21 @@ graph LR
     B --> RO["Read Operations (GET)"]
   end
 ```
-Sources: [src/metadata.ts](), [src/batch.ts](), [CHANGELOG.md]()
+
+---
+
+## v0.2.0 — Spec Alignment & Advanced Features
+
+Released as `v0.2.0`, this version aligns the library with the [FM-ODATA_SPEC](https://github.com/fsans/FM-ODATA_SPEC) reference specification and introduces several major features:
+
+- **Version Detection**: Automatic FMS major version detection from `$metadata` with feature gating (`version()`, `versionInfo()`, `hasFeature()`)
+- **`$apply` Aggregation**: Server-side `aggregate()` and `groupBy()` methods (FMS 2024+)
+- **FMSID Script Invocation**: Call scripts by immutable ID instead of name (FMS v26+)
+- **Navigation Properties (`$ref`)**: Full CRUD for OData relationship links (`getRefs`, `addRef`, `setRef`, `removeRef`)
+- **FMID Authentication**: `fmidAuth()` helper for FileMaker Cloud / Claris ID tokens
+- **IIFE Bundle**: New `fm-odata.iife.min.js` for `<script>` tag inclusion without a bundler
+- **Standardized Env Vars**: `FM_SERVER`, `FM_DATABASE`, `FM_USER`, `FM_PASSWORD`, `FM_VERIFY_SSL` (legacy `FM_ODATA_*` still accepted)
+- **Query Parameter Encoding**: Fixed encoding of `$filter` and `$expand` query options
+- **227 unit tests** (up from 180)
+
+Sources: [CHANGELOG.md:67-135](), [package.json:3-3]()

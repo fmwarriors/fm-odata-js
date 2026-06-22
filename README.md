@@ -4,12 +4,12 @@
 
 **A tiny, type-safe OData v4 client built for FileMaker Server.**
 
-Zero runtime dependencies · ~7.9 KB gzipped · One ES module · Web Viewer / Browser / Node 18+
+Zero runtime dependencies · ~9.1 KB gzipped · ESM + IIFE · Web Viewer / Browser / Node 18+
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![OData](https://img.shields.io/badge/OData-v4-0078D4?logo=data&logoColor=white)](https://www.odata.org/)
-[![FileMaker](https://img.shields.io/badge/FileMaker-19.0--22.0-FF6B00?logo=filemaker&logoColor=white)](https://www.claris.com/filemaker/)
-[![Bundle](https://img.shields.io/badge/gzip-~7.9%20KB-brightgreen)](#)
+[![FileMaker](https://img.shields.io/badge/FileMaker-19.0--26.0-FF6B00?logo=filemaker&logoColor=white)](https://www.claris.com/filemaker/)
+[![Bundle](https://img.shields.io/badge/gzip-~9.1%20KB-brightgreen)](#)
 [![Deps](https://img.shields.io/badge/runtime%20deps-0-blue)](#)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js&logoColor=white)](#)
 [![License](https://img.shields.io/badge/license-MIT-black)](./LICENSE)
@@ -24,16 +24,19 @@ FileMaker Server speaks OData v4, but the spec has sharp corners and FMS has qui
 
 > **Battle-tested in production.** I've been using this library heavily to let FileMaker Web Viewer instances talk to the *same* hosted database they live in — and the performance has been genuinely impressive. Queries that used to require round-tripping through scripts and set-field loops now resolve in a single OData call, with noticeably lower latency and a much cleaner code path. If you're building rich Web Viewer UIs backed by FMS, this is the fastest route I've found.
 
-- **Tiny.** Single ES module, zero runtime dependencies, ~7.9 KB gzipped.
+- **Tiny.** ESM and IIFE bundles, zero runtime dependencies, ~9.1 KB gzipped.
 - **Type-safe.** Fluent, chainable query builder with full TS inference.
 - **Runs anywhere.** Drop it into a FileMaker Web Viewer, a browser, or Node 18+.
 - **FMS-aware.** Handles the documented FMS OData deviations for you.
-- **Scripts built in.** Invoke FileMaker scripts at database, entity-set, or record scope with a single call.
+- **Version-aware.** Detects the FileMaker Server major version (19, 21, 22, 26) from `$metadata` and gates features accordingly.
+- **Scripts built in.** Invoke FileMaker scripts at database, entity-set, or record scope — by name or by immutable FMSID (v26+).
 - **Containers built in.** Upload, download, stream, or clear container fields with typed helpers — `Blob`, `ArrayBuffer`, and `Uint8Array` all accepted.
+- **Aggregations.** `$apply` builder for `aggregate()` and `groupBy()` — server-side sum, average, min, max, count (FMS 2024+).
+- **Navigation properties.** Full `$ref` CRUD — `getRefs`, `addRef`, `setRef`, `removeRef` for OData relationship links.
 - **Schema introspection.** `$metadata` parsed into typed `ODataMetadata` with entity types, keys, properties, and actions. Cached by default.
 - **Batch requests.** `$batch` builder composes multiple reads and atomic changesets (POST / PATCH / DELETE) into a single HTTP round-trip.
-- **Resilient.** Basic/Bearer auth with 401 retry, `AbortSignal`, and timeouts built in.
-- **Honest errors.** Every failure becomes a normalized `FMODataError` (or `FMScriptError` for script failures).
+- **Multi-auth.** Basic, Bearer, and FMID (FileMaker Cloud / Claris ID) auth with 401 retry, `AbortSignal`, and timeouts built in.
+- **Honest errors.** Every failure becomes a normalized `FMODataError` (or `FMScriptError` for script failures) with `isFMODataError` / `isFMScriptError` type guards.
 
 ## Status
 
@@ -44,6 +47,7 @@ FileMaker Server speaks OData v4, but the spec has sharp corners and FMS has qui
 | **M4 · 2/4**| Containers (binary upload / download / stream)                     | Done (v0.1.5) |
 | **M5**      | `$metadata` (schema introspection)                                 | Done |
 | **M6**      | `$batch` (multipart with changesets)                               | Done |
+| **v0.2.0**  | Spec alignment — version detection, `$apply`, FMSID scripts, `$ref`, FMID auth, IIFE build | Done (v0.2.0) |
 
 Full roadmap and changes live in [`CHANGELOG.md`](./CHANGELOG.md).
 
@@ -73,7 +77,7 @@ Local dev:
 
 ```bash
 npm install
-npm test          # 182 unit tests, offline
+npm test          # 227 unit tests, offline
 ```
 
 ## Quick start
@@ -87,6 +91,10 @@ const db = new FMOData({
   token: basicAuth('admin', 'secret'), // FMS OData requires Basic auth
   timeoutMs: 15_000,
 })
+
+// For FileMaker Cloud, use FMID auth instead:
+// import { fmidAuth } from 'fm-odata-js'
+// token: fmidAuth(clarisIdToken)
 
 // Collection read
 const { value, count } = await db
@@ -143,6 +151,17 @@ try {
   }
 }
 ```
+
+### FMSID-based invocation (v26+)
+
+On FileMaker Server 2026+, scripts can be invoked by their immutable FMSID
+instead of name. This survives script renames and database migrations:
+
+```ts
+const result = await db.scriptById(42, { parameter: 'hello' })
+```
+
+Use `await db.hasFeature('scriptsByFMSID')` to check before calling.
 
 ## Container fields
 
@@ -255,25 +274,103 @@ batch.changeset(cs => {
 })
 ```
 
+## Version detection & feature gating
+
+The library detects the FileMaker Server major version from the
+`Org.OData.Core.V1.ProductVersion` annotation in `$metadata` and caches it
+for the lifetime of the `FMOData` instance:
+
+```ts
+const v = await db.version()        // '19' | '21' | '22' | '26' | 'future' | null
+const info = await db.versionInfo() // full descriptor with feature flags
+const ok = await db.hasFeature('applyAggregation') // boolean
+```
+
+Feature flags include `applyAggregation`, `scriptsByFMSID`, `webhooks`, and
+more — see `FMFeatureFlags` in the type exports. This lets you write
+conditional code that adapts to the server's capabilities at runtime.
+
+## Aggregation (`$apply`)
+
+Server-side aggregation via OData `$apply` — requires FileMaker Server 2024+
+(v22). Use `hasFeature('applyAggregation')` to check before calling.
+
+```ts
+// Aggregate: sum, average, min, max, countdistinct
+const { value } = await db
+  .from('orders')
+  .aggregate([{ field: 'total', function: 'sum', alias: 'totalSum' }])
+  .get()
+// $apply=aggregate(total with sum as totalSum)
+
+// Group by with aggregation
+const { value } = await db
+  .from('orders')
+  .groupBy(['customerId'], [
+    { field: 'total', function: 'sum', alias: 'totalSum' },
+    { field: 'total', function: 'average', alias: 'avgTotal' },
+  ])
+  .get()
+// $apply=groupby((customerId),aggregate(total with sum as totalSum,total with average as avgTotal))
+
+// Raw $apply for advanced transformations
+const { value } = await db.from('orders').apply('aggregate(total with max as maxTotal)').get()
+```
+
+## Navigation properties (`$ref`)
+
+Manage OData relationship links between entities via `$ref`:
+
+```ts
+// List related references
+const refs = await db.from('contact').byKey(7).getRefs('addresses')
+// [{ '@odata.id': 'https://fms.example.com/fmi/odata/v4/DB/address(1)' }, ...]
+
+// Add a reference (POST — for collection-valued navigation properties)
+await db.from('contact').byKey(7).addRef('addresses', 42)
+
+// Set a reference (PATCH — for single-valued navigation properties)
+await db.from('order').byKey(100).setRef('customer', 7)
+
+// Remove a reference
+await db.from('contact').byKey(7).removeRef('addresses', 42)
+await db.from('order').byKey(100).removeRef('customer') // clears single-valued
+```
+
 ## Live integration tests
 
 Copy `.env.sample` to `.env` and fill in real FMS credentials:
 
 ```bash
 npm run probe                                  # quick connectivity check
-FM_ODATA_LIVE=1 npm test -- tests/integration  # full CRUD against real FMS
+FM_LIVE=1 npm test -- tests/integration        # full CRUD against real FMS
 ```
 
-> Using self-signed certs on a LAN box? Set `FM_ODATA_INSECURE_TLS=1` in `.env`.
+> Using self-signed certs on a LAN box? Set `FM_VERIFY_SSL=0` in `.env`.
+>
+> Standardized env var names (`FM_SERVER`, `FM_DATABASE`, `FM_USER`,
+> `FM_PASSWORD`, `FM_VERIFY_SSL`, `FM_TIMEOUT`, `FM_LIVE`) are preferred.
+> Legacy `FM_ODATA_*` names are still accepted as fallbacks.
 
 ## Docs
 
 - [`docs/README.md`](./docs/README.md) — API reference and deeper guides
-- [`docs/filemaker-quirks.md`](./docs/filemaker-quirks.md) — the three FMS deviations and how this library works around them
+- [`docs/filemaker-quirks.md`](./docs/filemaker-quirks.md) — FMS OData deviations and how this library works around them
+- [`docs/filemaker-odata-container-guide.md`](./docs/filemaker-odata-container-guide.md) — full Claris OData container-operations reference
+- [`CHANGELOG.md`](./CHANGELOG.md) — full release history
+- [FM-ODATA_SPEC](https://github.com/fsans/FM-ODATA_SPEC) — reference specification this library aligns to
 - [`examples/`](./examples) — runnable sample projects
   - [`consumer-node/`](./examples/consumer-node) — Node CLI consuming the library
-  - [`webviewer/`](./examples/webviewer) — **standalone HTML page** ready to drop into a FileMaker Web Viewer
+  - [`webviewer/`](./examples/webviewer) — **standalone HTML page** ready to drop into a FileMaker Web Viewer (uses the IIFE bundle)
 - [`examples/Contacts.fmp12`](./examples/Contacts.fmp12) — ready-to-host FileMaker test database matching the examples. **Credentials: `admin` / `admin`** (dev use only — change before exposing to any network).
+
+### Build formats
+
+The library ships three bundle formats:
+
+- **ESM** (`dist/fm-odata.esm.js`) — for Node, bundlers, and modern browsers
+- **ESM minified** (`dist/fm-odata.esm.min.js`) — ~9.1 KB gzipped, production use
+- **IIFE** (`dist/fm-odata.iife.min.js`) — global `FMODataLib`, for FileMaker Web Viewer and `<script>` tag inclusion without a bundler
 
 ## Contributing
 

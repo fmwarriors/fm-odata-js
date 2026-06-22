@@ -4,10 +4,11 @@
 
 ### Key Design Principles
 
-*   **Zero Runtime Dependencies:** The library is built to be extremely lightweight (~7.9 KB gzipped), ensuring fast load times in restricted environments like the FileMaker Web Viewer [README.md:25-25]().
-*   **ESM First:** Distributed as a single ES module, making it compatible with modern build tools, Node.js 18+, and direct browser imports [package.json:5-7]().
-*   **FileMaker-Aware:** Automatically handles FMS-specific behaviors such as Basic Auth requirements, specialized date formatting, and script execution envelopes [README.md:28-31]().
-*   **Type Safety:** Provides full TypeScript inference for query building and response handling [README.md:26-26]().
+*   **Zero Runtime Dependencies:** The library is built to be extremely lightweight (~9.1 KB gzipped), ensuring fast load times in restricted environments like the FileMaker Web Viewer [README.md:27-27]().
+*   **ESM + IIFE:** Distributed as both an ES module and an IIFE bundle (global `FMODataLib`), making it compatible with modern build tools, Node.js 18+, direct browser imports, and `<script>` tag inclusion without a bundler [package.json:5-8]().
+*   **FileMaker-Aware:** Automatically handles FMS-specific behaviors such as Basic/FMID auth requirements, specialized date formatting, and script execution envelopes [README.md:30-30]().
+*   **Type Safety:** Provides full TypeScript inference for query building and response handling [README.md:28-28]().
+*   **Version-Aware:** Detects the FileMaker Server major version (19, 21, 22, 26) from `$metadata` and gates features accordingly [README.md:31-31]().
 
 ### System Context
 
@@ -32,7 +33,7 @@ graph TD
     A --> D
     B --> D
     D --> E
-    E -- "HTTP Basic/Bearer" --> C
+    E -- "HTTP Basic/Bearer/FMID" --> C
     C -- "JSON/XML" --> E
     F -- "Action Endpoint" --> C
     G -- "Resource Path" --> C
@@ -84,13 +85,17 @@ Sources: [CHANGELOG.md:14-19](), [README.md:114-123](), [src/index.ts:1-10]()
 
 | Feature | Description |
 | :--- | :--- |
-| **Fluent Querying** | Build complex `$filter`, `$select`, and `$orderby` chains using a type-safe builder. |
+| **Fluent Querying** | Build complex `$filter`, `$select`, `$orderby`, and `$apply` chains using a type-safe builder. |
 | **CRUD Operations** | Standard methods for `create()`, `get()`, `patch()`, and `delete()`. |
-| **Script Execution** | Trigger FileMaker scripts at database, entity-set, or record scope with parameters and receive `scriptResult`. |
+| **Script Execution** | Trigger FileMaker scripts at database, entity-set, or record scope — by name or by immutable FMSID (v26+). |
 | **Containers** | Upload, download, stream, and delete binary data in FileMaker container fields via `ContainerRef`. |
 | **Schema Introspection** | Fetch and parse `$metadata` to discover entity types, properties, keys, and actions at runtime. |
 | **Batch Requests** | Combine multiple reads and atomic changesets into a single `multipart/mixed` HTTP round-trip via `Batch`. |
-| **Error Handling** | Specialized `FMODataError` and `FMScriptError` for granular HTTP and script-level error handling. |
+| **Version Detection** | Detect FMS major version and gate features with `version()`, `versionInfo()`, `hasFeature()`. |
+| **Aggregation** | Server-side `$apply` with `aggregate()` and `groupBy()` (FMS 2024+). |
+| **Navigation Properties** | Full `$ref` CRUD — `getRefs`, `addRef`, `setRef`, `removeRef` for OData relationship links. |
+| **Multi-Auth** | Basic, Bearer, and FMID (FileMaker Cloud / Claris ID) auth with 401 retry. |
+| **Error Handling** | Specialized `FMODataError` and `FMScriptError` with `isFMODataError` / `isFMScriptError` type guards. |
 
 ---
 
@@ -103,8 +108,8 @@ Step-by-step instructions for installing the library via GitHub or local checkou
 For details, see [Getting Started](#1.1).
 
 ### [Build System and Distribution](#1.2)
-Technical details on the build pipeline using `tsc` and `esbuild`. Explains the distribution artifacts (`.esm.js`, `.esm.min.js`, and `.d.ts`) and the `sideEffects: false` optimization for tree-shaking.
+Technical details on the build pipeline using `tsc` and `esbuild`. Explains the distribution artifacts (`.esm.js`, `.esm.min.js`, `.iife.min.js`, and `.d.ts`) and the `sideEffects: false` optimization for tree-shaking.
 For details, see [Build System and Distribution](#1.2).
 
 ---
-Sources: [README.md:1-169](), [package.json:1-58](), [CHANGELOG.md:1-66]()
+Sources: [README.md:1-382](), [package.json:1-61](), [CHANGELOG.md:1-135]()

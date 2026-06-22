@@ -1,4 +1,4 @@
-# fm-odata-js · Web Viewer Demo (v0.1.6)
+# fm-odata-js · Web Viewer Demo (v0.2.0)
 
 A **single, self-contained HTML page** that demonstrates `fm-odata-js` in a
 FileMaker Pro **Web Viewer**. Connects to the bundled `Contacts.fmp12` demo
@@ -13,6 +13,7 @@ solution and showcases all major library features.
 | **M4** | Container I/O support (in library, add container fields to test) |
 | **M5** | Metadata introspection (`$metadata` parsing) |
 | **M6** | Batch operations (`$batch` multipart requests) |
+| **v0.2.0** | Version detection, `$apply` aggregation, `$ref` navigation (in library) |
 
 ## Two Variants
 
@@ -21,7 +22,7 @@ solution and showcases all major library features.
 | [`index.html`](./index.html) | Loaded from jsDelivr CDN at runtime | Internet access available, smallest file |
 | [`index-inline.html`](./index-inline.html) | **Fully inlined** — no external JS | Offline/air-gapped, strict Web Viewer sandboxes |
 
-Both have identical UI and behavior. The inline version bundles **v0.1.6** of the library.
+Both have identical UI and behavior. The inline version bundles **v0.2.0** of the library.
 
 ## Quick Start
 
@@ -49,12 +50,12 @@ Both have identical UI and behavior. The inline version bundles **v0.1.6** of th
 
 ## What It Does
 
-- Loads `fm-odata-js` v0.1.6 (CDN or inlined)
+- Loads `fm-odata-js` v0.2.0 (CDN or inlined via IIFE bundle)
 - Issues OData `GET` requests per table with `$top=100&$count=true`
 - Renders results as tabbed data grids
 - Surfaces `FMODataError` details (HTTP status + FMS error code) inline
 
-## Using New Features (M4-M6)
+## Using New Features (M4-v0.2.0)
 
 The Web Viewer demo focuses on visual table browsing. To test the advanced features:
 
@@ -107,6 +108,29 @@ console.log('All OK:', result.ok);
 console.log('Responses:', result.responses);
 ```
 
+### Version Detection & Aggregation (v0.2.0)
+Detect server version and use `$apply` aggregation:
+
+```javascript
+const version = await db.version(); // '19' | '21' | '22' | '26' | null
+console.log('FMS version:', version);
+
+if (await db.hasFeature('applyAggregation')) {
+  const { value } = await db
+    .from('contact')
+    .aggregate([{ field: 'id', function: 'countdistinct', alias: 'total' }])
+    .get();
+  console.log('Total contacts:', value[0].total);
+}
+```
+
+### Navigation Properties / $ref (v0.2.0)
+
+```javascript
+const refs = await db.from('contact').byKey(7).getRefs('address');
+console.log('Related addresses:', refs.length);
+```
+
 See the [`consumer-node`](../consumer-node) example for complete runnable demos of all features.
 
 ## Embedding in a Web Viewer
@@ -145,10 +169,11 @@ Web Viewers run under `fmp://` or `null` origin. Your FMS must either:
 
 ## CDN Version History
 
-- **v0.1.6** (current) — M4 containers, M5 metadata, M6 batch
+- **v0.2.0** (current) — Spec alignment: version detection, `$apply`, FMSID scripts, `$ref`, FMID auth, IIFE build
+- **v0.1.6** — M4 containers, M5 metadata, M6 batch
 - **v0.1.1** — M1-M3 (basic CRUD + scripts)
 
 To use a specific version, change the URL in `index.html`:
 ```html
-import { FMOData } from 'https://cdn.jsdelivr.net/gh/fsans/fm-odata-js@v0.1.6/dist/fm-odata.esm.min.js'
+import { FMOData } from 'https://cdn.jsdelivr.net/gh/fsans/fm-odata-js@v0.2.0/dist/fm-odata.esm.min.js'
 ```

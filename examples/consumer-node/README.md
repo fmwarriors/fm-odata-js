@@ -1,14 +1,17 @@
 # fm-odata-js Consumer Example
 
-A comprehensive demonstration of using `fm-odata-js` (v0.1.6) in a Node.js environment via a local `file:` dependency. This example showcases all major milestones:
+A comprehensive demonstration of using `fm-odata-js` (v0.2.0) in a Node.js environment via a local `file:` dependency. This example showcases all major features:
 
-| Milestone | Feature | Demo in this example |
-|-----------|---------|----------------------|
-| M1-M2 | CRUD Queries | List rows from each table with `$top` and `$count` |
-| M3 | Script Execution | Call the `Ping` script with a parameter |
-| M4 | Container I/O | Download container field content |
-| M5 | Metadata | Introspect the OData schema (`$metadata`) |
-| M6 | Batch Operations | Multi-read + atomic changeset in one request |
+| Feature | Demo in this example |
+|---------|----------------------|
+| M1-M2: CRUD Queries | List rows from each table with `$top` and `$count` |
+| M3: Script Execution | Call the `Ping` script with a parameter |
+| M4: Container I/O | Download container field content |
+| M5: Metadata | Introspect the OData schema (`$metadata`) |
+| M6: Batch Operations | Atomic changeset + read in one request |
+| v0.2.0: Version Detection | Detect FMS major version and feature flags |
+| v0.2.0: Aggregation (`$apply`) | Server-side countdistinct via `aggregate()` |
+| v0.2.0: Navigation (`$ref`) | List related records via `getRefs()` |
 
 ## Test Database
 
@@ -41,13 +44,17 @@ The example reads FMS connection settings from environment variables:
 node --env-file=../../.env index.mjs
 
 # Older Node: export the vars manually
-export FM_ODATA_HOST=https://fms.example.com
-export FM_ODATA_DATABASE=Contacts
-export FM_ODATA_USER=your-fms-user
-export FM_ODATA_PASSWORD=your-fms-password
-export FM_ODATA_INSECURE_TLS=1   # only for self-signed LAN certs
+export FM_SERVER=https://fms.example.com
+export FM_DATABASE=Contacts
+export FM_USER=your-fms-user
+export FM_PASSWORD=your-fms-password
+export FM_VERIFY_SSL=0   # only for self-signed LAN certs
 node index.mjs
 ```
+
+> Standardized env var names (`FM_SERVER`, `FM_DATABASE`, `FM_USER`, `FM_PASSWORD`,
+> `FM_VERIFY_SSL`) are preferred. Legacy `FM_ODATA_*` names are still accepted as
+> fallbacks.
 
 ## Example Output
 
@@ -57,6 +64,9 @@ node index.mjs
 ============================================================
 1. BASIC QUERIES (M1-M2)
 ============================================================
+[version] FileMaker Server major version: 22
+[version] Features: applyAggregation=true, scriptsByFMSID=false
+
 contact   total=5  first 3 row(s):
   {id, first_name, last_name, email}
   {id, first_name, last_name, email}
@@ -88,13 +98,11 @@ entityTypes: 4 type(s)
 ============================================================
 4. BATCH OPERATIONS (M6)
 ============================================================
-batch     queued: 2 reads + 1 changeset (create)
+batch     queued: 1 changeset (create) + 1 read
 batch     result: ALL OK
-batch     responses: 3
-  [0] status=200 ok=true
+batch     responses: 2
+  [0] status=201 ok=true
   [1] status=200 ok=true
-  [2] status=201 ok=true
-  read[0] returned 2 contact(s)
 
 ============================================================
 5. CONTAINER FIELDS (M4)
@@ -102,6 +110,19 @@ batch     responses: 3
 container using record id=42
 container field URL: https://fms.example.com/fmi/odata/v4/Contacts/contact(42)/photo/$value
 container field "photo" is empty or doesn't exist (this is OK)
+
+============================================================
+6. AGGREGATION / $apply (v0.2.0)
+============================================================
+$apply    aggregate count: [{"totalContacts":5}]
+
+============================================================
+7. NAVIGATION PROPERTIES / $ref (v0.2.0)
+============================================================
+$ref      using contact id=1
+$ref      found 2 related address(es)
+  -> https://fms.example.com/fmi/odata/v4/Contacts/address(1)
+  -> https://fms.example.com/fmi/odata/v4/Contacts/address(2)
 
 ============================================================
 Example complete!
@@ -153,13 +174,54 @@ console.log(meta.namespace)        // "FileMaker"
 console.log(meta.entitySets)       // All tables
 console.log(meta.entityTypes)      // Field definitions
 console.log(meta.actions)          // Exposed scripts
-console.log(meta.raw)              // Original XML
 
 // Force refresh
 const fresh = await db.metadata({ refresh: true })
 
 // Raw XML only
 const xml = await db.metadataXml()
+```
+
+### v0.2.0: Version Detection & Feature Gating
+
+```ts
+const version = await db.version()        // '19' | '21' | '22' | '26' | 'future' | null
+const info = await db.versionInfo()       // full descriptor with feature flags
+const ok = await db.hasFeature('applyAggregation') // boolean
+```
+
+### v0.2.0: Aggregation (`$apply`)
+
+```ts
+// Aggregate (requires FMS 2024+)
+const { value } = await db
+  .from('contact')
+  .aggregate([{ field: 'id', function: 'countdistinct', alias: 'total' }])
+  .get()
+
+// Group by with aggregation
+const { value: grouped } = await db
+  .from('orders')
+  .groupBy(['customerId'], [
+    { field: 'total', function: 'sum', alias: 'totalSum' },
+  ])
+  .get()
+```
+
+### v0.2.0: Navigation Properties (`$ref`)
+
+```ts
+// List related references
+const refs = await db.from('contact').byKey(7).getRefs('address')
+
+// Add a reference (POST)
+await db.from('contact').byKey(7).addRef('address', 42)
+
+// Set a reference (PATCH — single-valued)
+await db.from('order').byKey(100).setRef('customer', 7)
+
+// Remove a reference
+await db.from('contact').byKey(7).removeRef('address', 42)
 ```
 
 ### M6: Batch Operations
@@ -199,7 +261,7 @@ If your consumer project uses TypeScript, the same code works verbatim — the
 library ships `.d.ts` files alongside the bundle. Simply:
 
 ```ts
-import { FMOData, basicAuth, type QueryResult, type ODataMetadata } from 'fm-odata-js'
+import { FMOData, basicAuth, fmidAuth, type QueryResult, type ODataMetadata } from 'fm-odata-js'
 
 interface Contact {
   id: number

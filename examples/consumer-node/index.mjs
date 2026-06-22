@@ -1,4 +1,4 @@
-// fm-odata-js comprehensive consumer example (v0.1.6)
+// fm-odata-js comprehensive consumer example (v0.2.0)
 //
 // Demonstrates all major features:
 // - Basic CRUD queries (M1-M2)
@@ -6,13 +6,16 @@
 // - Container field I/O (M4)
 // - Metadata introspection (M5)
 // - Batch operations (M6)
+// - Version detection & feature gating (v0.2.0)
+// - $apply aggregation (v0.2.0)
+// - Navigation properties / $ref (v0.2.0)
 //
-// Environment:
-//   FM_ODATA_HOST              e.g. https://192.168.0.24
-//   FM_ODATA_DATABASE          e.g. Contacts
-//   FM_ODATA_USER              FMS account with OData privileges
-//   FM_ODATA_PASSWORD          matching password
-//   FM_ODATA_INSECURE_TLS=1    optional, for self-signed LAN certs
+// Environment (standardized names preferred, legacy FM_ODATA_* accepted as fallback):
+//   FM_SERVER                  e.g. https://192.168.0.24
+//   FM_DATABASE                e.g. Contacts
+//   FM_USER                    FMS account with OData privileges
+//   FM_PASSWORD                matching password
+//   FM_VERIFY_SSL=0            optional, for self-signed LAN certs
 //   FM_ODATA_PING_SCRIPT       optional, script name (default: "Ping")
 //   FM_ODATA_DEMO_RECORD_ID    optional, record ID for container demo (default: finds first)
 //
@@ -24,46 +27,69 @@
 import { FMOData, basicAuth, FMODataError, FMScriptError } from 'fm-odata-js'
 
 const {
+  // Standardized env var names (preferred)
+  FM_SERVER,
+  FM_DATABASE,
+  FM_USER,
+  FM_PASSWORD,
+  FM_VERIFY_SSL,
+  // Legacy fallbacks
   FM_ODATA_HOST,
   FM_ODATA_DATABASE,
   FM_ODATA_USER,
   FM_ODATA_PASSWORD,
   FM_ODATA_INSECURE_TLS,
+  // Optional config
   FM_ODATA_PING_SCRIPT,
   FM_ODATA_DEMO_RECORD_ID,
   FM_ODATA_CONTAINER_FIELD,
 } = process.env
 
+// Resolve standardized names with legacy fallbacks
+const host = FM_SERVER || FM_ODATA_HOST
+const database = FM_DATABASE || FM_ODATA_DATABASE
+const user = FM_USER || FM_ODATA_USER
+const password = FM_PASSWORD || FM_ODATA_PASSWORD
+
 // Validate required env vars
-for (const [name, val] of Object.entries({
-  FM_ODATA_HOST,
-  FM_ODATA_DATABASE,
-  FM_ODATA_USER,
-  FM_ODATA_PASSWORD,
-})) {
+for (const [name, val] of Object.entries({ FM_SERVER: host, FM_DATABASE: database, FM_USER: user, FM_PASSWORD: password })) {
   if (!val) {
-    console.error(`Missing env var: ${name}`)
+    console.error(`Missing env var: ${name} (or legacy FM_ODATA_* equivalent)`)
     process.exit(1)
   }
 }
 
 // For self-signed certs on LAN FMS boxes. DEV ONLY.
-if (FM_ODATA_INSECURE_TLS === '1') {
+// FM_VERIFY_SSL=0 (standardized) or FM_ODATA_INSECURE_TLS=1 (legacy, inverted logic)
+if (FM_VERIFY_SSL === '0' || FM_ODATA_INSECURE_TLS === '1') {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
   console.warn('[example] TLS verification disabled (dev only).\n')
 }
 
 const db = new FMOData({
-  host: FM_ODATA_HOST,
-  database: FM_ODATA_DATABASE,
-  token: basicAuth(FM_ODATA_USER, FM_ODATA_PASSWORD),
+  host,
+  database,
+  token: basicAuth(user, password),
   timeoutMs: 15_000,
 })
 
-console.log(`[example] Connected to ${FM_ODATA_HOST}/${FM_ODATA_DATABASE}\n`)
+console.log(`[example] Connected to ${host}/${database}\n`)
 console.log('='.repeat(60))
 console.log('1. BASIC QUERIES (M1-M2)')
 console.log('='.repeat(60))
+
+// Also demonstrate version detection (v0.2.0)
+try {
+  const version = await db.version()
+  console.log(`[version] FileMaker Server major version: ${version ?? 'unknown'}`)
+  if (version) {
+    const info = await db.versionInfo()
+    console.log(`[version] Features: applyAggregation=${info?.features.applyAggregation}, scriptsByFMSID=${info?.features.scriptsByFMSID}`)
+  }
+} catch (err) {
+  console.log(`[version] detection failed: ${err.message}`)
+}
+console.log()
 
 // Query all tables
 for (const table of ['contact', 'address', 'email', 'phone']) {
@@ -236,6 +262,61 @@ try {
   }
 } catch (err) {
   console.log(`container ERROR: ${err.message}`)
+}
+
+console.log()
+console.log('='.repeat(60))
+console.log('6. AGGREGATION / $apply (v0.2.0)')
+console.log('='.repeat(60))
+
+// Requires FMS 2024+ (v22). Use db.hasFeature('applyAggregation') to check.
+try {
+  const canAggregate = await db.hasFeature('applyAggregation')
+  if (!canAggregate) {
+    console.log('$apply    server does not support aggregation (needs FMS 2024+) — skipping')
+  } else {
+    // Aggregate: count contacts
+    const { value: aggResult } = await db
+      .from('contact')
+      .aggregate([{ field: 'id', function: 'countdistinct', alias: 'totalContacts' }])
+      .get()
+    console.log(`$apply    aggregate count: ${JSON.stringify(aggResult)}`)
+  }
+} catch (err) {
+  console.log(`$apply    ERROR: ${err.message}`)
+}
+
+console.log()
+console.log('='.repeat(60))
+console.log('7. NAVIGATION PROPERTIES / $ref (v0.2.0)')
+console.log('='.repeat(60))
+
+// Demonstrate $ref for relationship traversal
+try {
+  const { value: contacts } = await db.from('contact').top(1).get()
+  if (contacts.length > 0) {
+    const contactId = contacts[0].id
+    console.log(`$ref      using contact id=${contactId}`)
+
+    // Try to get related address references
+    try {
+      const refs = await db.from('contact').byKey(contactId).getRefs('address')
+      console.log(`$ref      found ${refs.length} related address(es)`)
+      for (const ref of refs.slice(0, 3)) {
+        console.log(`  -> ${ref['@odata.id']}`)
+      }
+    } catch (refErr) {
+      if (refErr instanceof FMODataError) {
+        console.log(`$ref      address navigation not available (${refErr.status} ${refErr.message})`)
+      } else {
+        throw refErr
+      }
+    }
+  } else {
+    console.log('$ref      no contacts found — skipping')
+  }
+} catch (err) {
+  console.log(`$ref      ERROR: ${err.message}`)
 }
 
 console.log()

@@ -1,7 +1,6 @@
 # fm-odata-js docs
 
-Detailed docs will be filled in across milestones M2-M7:
-
-- `api.md` - API reference (M2+)
-- `filemaker-quirks.md` - FM-specific deviations (M3+)
-- `cors.md` - Reverse-proxy recipes for browser use outside a Web Viewer (M7)
+- `filemaker-quirks.md` — FMS OData deviations and how this library works around them
+- `filemaker-odata-container-guide.md` — full Claris OData container-operations reference
+- `container-download-problem.md` — investigation log for the Accept-header quirk (resolved)
+- `m4-plan.md` — M4 implementation plan (scripts + containers)

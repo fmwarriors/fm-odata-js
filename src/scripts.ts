@@ -15,7 +15,7 @@
  *   POST /<db>/<EntitySet>/Script.FMSID:<id>       // entity-set context
  *   POST /<db>/<EntitySet>(<key>)/Script.FMSID:<id> // single-record context
  *
- * The optional parameter is sent as `{ "scriptParameter": "<string>" }`. The
+ * The optional parameter is sent as `{ "scriptParameterValue": "<string>" }`. The
  * response envelope is `{ "scriptResult": "...", "scriptError": "0" }`; a
  * non-zero `scriptError` becomes an `FMScriptError`.
  *
@@ -40,9 +40,9 @@ export type ScriptIdentifier =
 /** Options accepted by a script invocation. */
 export interface ScriptOptions extends RequestOptions {
   /**
-   * Optional script parameter. Serialized to the FMS `scriptParameter` field
-   * in the request body. If omitted, the body is empty and the script runs
-   * with no parameter (FileMaker's `Get(ScriptParameter)` returns empty).
+   * Optional script parameter. Serialized to the FMS `scriptParameterValue`
+   * field in the request body. If omitted, the body is empty and the script
+   * runs with no parameter (FileMaker's `Get(ScriptParameter)` returns empty).
    */
   parameter?: string
 }
@@ -148,7 +148,7 @@ export class ScriptInvoker {
     let body: string | undefined
     if (opts.parameter !== undefined) {
       headers['Content-Type'] = 'application/json'
-      body = JSON.stringify({ scriptParameter: opts.parameter })
+      body = JSON.stringify({ scriptParameterValue: opts.parameter })
     }
 
     const method = 'POST'
@@ -178,10 +178,27 @@ export function parseScriptEnvelope(
   // tolerate both shapes by looking for the fields at depth 0 or 1.
   const envelope = extractEnvelope(raw)
 
-  const scriptError =
-    envelope.scriptError !== undefined ? String(envelope.scriptError) : '0'
-  const scriptResult =
-    envelope.scriptResult !== undefined ? String(envelope.scriptResult) : undefined
+  // FMS v26+ wraps the result as: {"scriptResult": {"code": 0, "resultParameter": "..."}}
+  // Older FMS uses flat: {"scriptResult": "...", "scriptError": "0"}
+  const rawResult = envelope.scriptResult
+  let scriptResult: string | undefined
+  let scriptError: string
+
+  if (rawResult !== null && typeof rawResult === 'object' && 'resultParameter' in rawResult) {
+    // Nested envelope (FMS v26+): code + resultParameter inside scriptResult
+    const nested = rawResult as { code?: unknown; resultParameter?: unknown }
+    scriptError = nested.code !== undefined ? String(nested.code) : '0'
+    scriptResult = nested.resultParameter !== undefined ? String(nested.resultParameter) : undefined
+  } else {
+    // Flat envelope (older FMS): scriptResult is a string, scriptError is a sibling
+    scriptError = envelope.scriptError !== undefined ? String(envelope.scriptError) : '0'
+    scriptResult =
+      rawResult !== undefined
+        ? typeof rawResult === 'string'
+          ? rawResult
+          : JSON.stringify(rawResult)
+        : undefined
+  }
 
   if (scriptError !== '0') {
     throw new FMScriptError(

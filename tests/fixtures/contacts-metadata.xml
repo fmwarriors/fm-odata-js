@@ -29,7 +29,7 @@
         <EntitySet Name="address" EntityType="FMI.address" />
       </EntityContainer>
       <Action Name="Ping">
-        <Parameter Name="scriptParameter" Type="Edm.String" />
+        <Parameter Name="scriptParameterValue" Type="Edm.String" />
         <ReturnType Type="Edm.String" />
       </Action>
       <Action Name="SendWelcomeEmail" IsBound="true" EntityType="FMI.contact">

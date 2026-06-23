@@ -15,7 +15,7 @@
  *   POST /<db>/<EntitySet>/Script.FMSID:<id>       // entity-set context
  *   POST /<db>/<EntitySet>(<key>)/Script.FMSID:<id> // single-record context
  *
- * The optional parameter is sent as `{ "scriptParameter": "<string>" }`. The
+ * The optional parameter is sent as `{ "scriptParameterValue": "<string>" }`. The
  * response envelope is `{ "scriptResult": "...", "scriptError": "0" }`; a
  * non-zero `scriptError` becomes an `FMScriptError`.
  *
@@ -35,9 +35,9 @@ export type ScriptIdentifier = {
 /** Options accepted by a script invocation. */
 export interface ScriptOptions extends RequestOptions {
     /**
-     * Optional script parameter. Serialized to the FMS `scriptParameter` field
-     * in the request body. If omitted, the body is empty and the script runs
-     * with no parameter (FileMaker's `Get(ScriptParameter)` returns empty).
+     * Optional script parameter. Serialized to the FMS `scriptParameterValue`
+     * field in the request body. If omitted, the body is empty and the script
+     * runs with no parameter (FileMaker's `Get(ScriptParameter)` returns empty).
      */
     parameter?: string;
 }

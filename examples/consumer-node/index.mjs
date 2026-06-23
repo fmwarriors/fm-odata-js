@@ -270,17 +270,23 @@ console.log('6. AGGREGATION / $apply (v0.2.0)')
 console.log('='.repeat(60))
 
 // Requires FMS 2024+ (v22). Use db.hasFeature('applyAggregation') to check.
+// Note: FMS v26 has a parser bug that rejects aggregate(...) syntax with
+// "parse failure in URL at: ')'". groupby((fields)) works correctly.
 try {
   const canAggregate = await db.hasFeature('applyAggregation')
   if (!canAggregate) {
     console.log('$apply    server does not support aggregation (needs FMS 2024+) — skipping')
   } else {
-    // Aggregate: count contacts
-    const { value: aggResult } = await db
+    // groupby: distinct first_name/last_name combos (works on FMS v26)
+    const { value: groupResult } = await db
       .from('contact')
-      .aggregate([{ field: 'id', function: 'countdistinct', alias: 'totalContacts' }])
+      .groupBy(['first_name', 'last_name'])
       .get()
-    console.log(`$apply    aggregate count: ${JSON.stringify(aggResult)}`)
+    console.log(`$apply    groupby first_name,last_name: ${groupResult.length} distinct combo(s)`)
+    for (const row of groupResult.slice(0, 5)) {
+      console.log(`  -> ${row.first_name} ${row.last_name}`)
+    }
+    if (groupResult.length > 5) console.log(`  ... and ${groupResult.length - 5} more`)
   }
 } catch (err) {
   console.log(`$apply    ERROR: ${err.message}`)

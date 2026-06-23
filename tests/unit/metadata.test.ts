@@ -56,7 +56,7 @@ const SAMPLE_METADATA = `<?xml version="1.0" encoding="UTF-8"?>
         <EntitySet Name="address" EntityType="FMI.address" />
       </EntityContainer>
       <Action Name="Ping">
-        <Parameter Name="scriptParameter" Type="Edm.String" />
+        <Parameter Name="scriptParameterValue" Type="Edm.String" />
         <ReturnType Type="Edm.String" />
       </Action>
       <Action Name="SendWelcomeEmail" IsBound="true" EntityType="FMI.contact">
@@ -129,7 +129,7 @@ describe('parseMetadata', () => {
     const ping = meta.actions.find(a => a.name === 'Ping')!
     expect(ping.boundTo).toBeUndefined()
     expect(ping.parameters).toHaveLength(1)
-    expect(ping.parameters[0]).toEqual({ name: 'scriptParameter', type: 'Edm.String' })
+    expect(ping.parameters[0]).toEqual({ name: 'scriptParameterValue', type: 'Edm.String' })
 
     const sendEmail = meta.actions.find(a => a.name === 'SendWelcomeEmail')!
     expect(sendEmail.boundTo).toBe('FMI.contact')

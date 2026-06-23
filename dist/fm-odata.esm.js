@@ -194,7 +194,7 @@ function encodePathSegment(s) {
   return encodeURIComponent(s);
 }
 function odataEncode(v) {
-  return encodeURIComponent(v).replace(/%2C/gi, ",").replace(/%24/g, "$").replace(/%3D/g, "=").replace(/%3B/g, ";");
+  return encodeURIComponent(v).replace(/%2C/gi, ",").replace(/%24/g, "$").replace(/%3D/g, "=").replace(/%3B/g, ";").replace(/%28/g, "(").replace(/%29/g, ")");
 }
 function buildQueryString(params) {
   const parts = [];
@@ -1344,7 +1344,7 @@ var ScriptInvoker = class {
     let body;
     if (opts.parameter !== void 0) {
       headers["Content-Type"] = "application/json";
-      body = JSON.stringify({ scriptParameter: opts.parameter });
+      body = JSON.stringify({ scriptParameterValue: opts.parameter });
     }
     const method = "POST";
     const json = await executeJson(this._client._ctx, url, {
@@ -1359,8 +1359,17 @@ var ScriptInvoker = class {
 };
 function parseScriptEnvelope(raw, request) {
   const envelope = extractEnvelope(raw);
-  const scriptError = envelope.scriptError !== void 0 ? String(envelope.scriptError) : "0";
-  const scriptResult = envelope.scriptResult !== void 0 ? String(envelope.scriptResult) : void 0;
+  const rawResult = envelope.scriptResult;
+  let scriptResult;
+  let scriptError;
+  if (rawResult !== null && typeof rawResult === "object" && "resultParameter" in rawResult) {
+    const nested = rawResult;
+    scriptError = nested.code !== void 0 ? String(nested.code) : "0";
+    scriptResult = nested.resultParameter !== void 0 ? String(nested.resultParameter) : void 0;
+  } else {
+    scriptError = envelope.scriptError !== void 0 ? String(envelope.scriptError) : "0";
+    scriptResult = rawResult !== void 0 ? typeof rawResult === "string" ? rawResult : JSON.stringify(rawResult) : void 0;
+  }
   if (scriptError !== "0") {
     throw new FMScriptError(
       `FileMaker script error ${scriptError}`,

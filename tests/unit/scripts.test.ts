@@ -46,7 +46,7 @@ describe('FMOData#script (database scope)', () => {
     expect(headers.has('content-type')).toBe(false)
   })
 
-  it('sends { scriptParameter } as JSON when parameter is provided', async () => {
+  it('sends { scriptParameterValue } as JSON when parameter is provided', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(jsonResponse({ scriptResult: 'pong:hi', scriptError: '0' }))
@@ -55,7 +55,7 @@ describe('FMOData#script (database scope)', () => {
     await db.script('Ping', { parameter: 'hi' })
 
     const [, init] = fetchMock.mock.calls[0]!
-    expect((init as RequestInit).body).toBe(JSON.stringify({ scriptParameter: 'hi' }))
+    expect((init as RequestInit).body).toBe(JSON.stringify({ scriptParameterValue: 'hi' }))
     const headers = (init as RequestInit).headers as Headers
     expect(headers.get('content-type')).toBe('application/json')
   })
@@ -262,7 +262,7 @@ describe('FMOData#scriptById (FMSID, database scope)', () => {
     expect((init as RequestInit).body).toBeUndefined()
   })
 
-  it('sends { scriptParameter } as JSON when parameter is provided', async () => {
+  it('sends { scriptParameterValue } as JSON when parameter is provided', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(jsonResponse({ scriptResult: 'ok', scriptError: '0' }))
@@ -272,7 +272,7 @@ describe('FMOData#scriptById (FMSID, database scope)', () => {
 
     const [url, init] = fetchMock.mock.calls[0]!
     expect(url).toBe(`${BASE}/Script.FMSID:42`)
-    expect((init as RequestInit).body).toBe(JSON.stringify({ scriptParameter: 'hello' }))
+    expect((init as RequestInit).body).toBe(JSON.stringify({ scriptParameterValue: 'hello' }))
     const headers = (init as RequestInit).headers as Headers
     expect(headers.get('content-type')).toBe('application/json')
   })

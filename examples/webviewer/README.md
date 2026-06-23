@@ -165,7 +165,22 @@ Web Viewers run under `fmp://` or `null` origin. Your FMS must either:
 | `status: loaded with errors` + 401 | Wrong user/password, or OData account lacks privileges |
 | `status: err` + network failure | OData API not enabled on FMS, or host URL incorrect |
 | 400 on count | Expected — library works around the FMS `/$count` quirk |
-| TLS / certificate error | Self-signed FMS cert; accept it in browser first |
+| TLS / certificate error | Self-signed FMS cert; see below |
+| `Fetch API cannot load ... due to access control checks` | CORS failure, usually caused by TLS error first — fix the cert issue and retry |
+
+### TLS / Self-Signed Certificate Errors
+
+The browser's `fetch()` API cannot skip certificate validation. If your FMS uses a self-signed cert, you have two options:
+
+1. **Use HTTP for local dev** — Change the host from `https://192.168.0.24` to `http://192.168.0.24`. This bypasses TLS entirely. Only suitable for local networks where FMS allows plain HTTP.
+
+2. **Trust the certificate at the OS level** — On macOS:
+   - Open `https://your-fms-host` in Safari
+   - Click "Show Details" → "visit this website" → proceed
+   - Or: open **Keychain Access** → **File → Import Items** → select the FMS cert → double-click it → set "Trust" to "Always Trust"
+   - Restart FileMaker Pro so the Web Viewer (WKWebView) picks up the trusted certificate
+
+3. **Install a proper certificate** — Use Let's Encrypt or a commercial cert on FMS for production.
 
 ## CDN Version History
 

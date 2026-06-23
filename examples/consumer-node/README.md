@@ -114,7 +114,12 @@ container field "photo" is empty or doesn't exist (this is OK)
 ============================================================
 6. AGGREGATION / $apply (v0.2.0)
 ============================================================
-$apply    aggregate count: [{"totalContacts":5}]
+$apply    groupby first_name,last_name: 239 distinct combo(s)
+  -> Barbara Anderson
+  -> Barbara Brown
+  -> Barbara Davis
+  -> Barbara Garcia
+  ... and 234 more
 
 ============================================================
 7. NAVIGATION PROPERTIES / $ref (v0.2.0)
@@ -193,14 +198,21 @@ const ok = await db.hasFeature('applyAggregation') // boolean
 ### v0.2.0: Aggregation (`$apply`)
 
 ```ts
-// Aggregate (requires FMS 2024+)
+// Group by fields (works on FMS v22+ and v26)
+const { value: grouped } = await db
+  .from('contact')
+  .groupBy(['first_name', 'last_name'])
+  .get()
+
+// Aggregate (requires FMS 2024+; note: FMS v26 has a parser bug
+// that rejects aggregate(...) syntax — use groupby where possible)
 const { value } = await db
   .from('contact')
   .aggregate([{ field: 'id', function: 'countdistinct', alias: 'total' }])
   .get()
 
 // Group by with aggregation
-const { value: grouped } = await db
+const { value: grouped2 } = await db
   .from('orders')
   .groupBy(['customerId'], [
     { field: 'total', function: 'sum', alias: 'totalSum' },

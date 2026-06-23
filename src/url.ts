@@ -66,6 +66,8 @@ export function encodePathSegment(s: string): string {
  *
  * - Spaces become `%20` (not `+`) — required by OData `$filter`.
  * - Commas stay literal (not `%2C`) — required by `$select`, `$orderby`, `$expand`.
+ * - Parentheses stay literal (not `%28`/`%29`) — required by `$apply` expressions
+ *   such as `aggregate(...)` and `groupby((...))`.
  * - `$`, `=`, and `;` stay literal — required for nested `$expand` options.
  *   FileMaker Server rejects percent-encoded forms of these characters.
  */
@@ -75,6 +77,8 @@ export function odataEncode(v: string): string {
     .replace(/%24/g, '$')
     .replace(/%3D/g, '=')
     .replace(/%3B/g, ';')
+    .replace(/%28/g, '(')
+    .replace(/%29/g, ')')
 }
 
 /**

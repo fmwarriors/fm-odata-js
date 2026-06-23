@@ -513,6 +513,320 @@ var Batch = class {
   }
 };
 
+// node_modules/@fm-odata/spec-ts/dist/versions.js
+var FM_VERSION_NAMES = {
+  "19": "FileMaker 19.x",
+  "21": "Claris FileMaker 2023",
+  "22": "Claris FileMaker 2024",
+  "26": "Claris FileMaker 2026",
+  future: "Future / next"
+};
+var ODATA_PROTOCOL_VERSION = "4.0";
+var FM_VERSION_MATRIX = {
+  "19": {
+    major: "19",
+    name: "FileMaker 19.x",
+    releaseYear: null,
+    internalVersion: "19.x",
+    status: "baseline",
+    features: {
+      serviceDocument: true,
+      metadata: true,
+      databaseListing: true,
+      tableListing: true,
+      recordCRUD: true,
+      recordReferences: true,
+      crossJoin: true,
+      batch: true,
+      scripts: true,
+      scriptsByFMSID: false,
+      scriptListing: false,
+      containerBinaryUpload: true,
+      containerBase64Upload: true,
+      containerDownload: true,
+      schemaModification: true,
+      webhooks: false,
+      webhookQueryHeaders: false,
+      applyAggregation: false,
+      typeCasting: false,
+      parameterizedFilters: false,
+      immutableIdUrls: false,
+      aiAnnotation: false,
+      serverVersionAnnotation: false,
+      enrichedFMComment: false,
+      authBasic: true,
+      authFMID: false,
+      authOAuth: false
+    },
+    queryOptions: {
+      $filter: true,
+      $select: true,
+      $orderby: true,
+      $top: true,
+      $skip: true,
+      $expand: true,
+      $count: true,
+      $apply: false,
+      $search: false,
+      $compute: false
+    }
+  },
+  "21": {
+    major: "21",
+    name: "Claris FileMaker 2023",
+    releaseYear: 2023,
+    internalVersion: "21.x",
+    status: "supported",
+    features: {
+      serviceDocument: true,
+      metadata: true,
+      databaseListing: true,
+      tableListing: true,
+      recordCRUD: true,
+      recordReferences: true,
+      crossJoin: true,
+      batch: true,
+      scripts: true,
+      scriptsByFMSID: false,
+      scriptListing: false,
+      containerBinaryUpload: true,
+      containerBase64Upload: true,
+      containerDownload: true,
+      schemaModification: true,
+      webhooks: true,
+      webhookQueryHeaders: false,
+      applyAggregation: false,
+      typeCasting: true,
+      parameterizedFilters: true,
+      immutableIdUrls: false,
+      aiAnnotation: false,
+      serverVersionAnnotation: false,
+      enrichedFMComment: false,
+      authBasic: true,
+      authFMID: true,
+      authOAuth: true
+    },
+    queryOptions: {
+      $filter: true,
+      $select: true,
+      $orderby: true,
+      $top: true,
+      $skip: true,
+      $expand: true,
+      $count: true,
+      $apply: false,
+      $search: false,
+      $compute: false
+    }
+  },
+  "22": {
+    major: "22",
+    name: "Claris FileMaker 2024",
+    releaseYear: 2024,
+    internalVersion: "22.x",
+    status: "supported",
+    features: {
+      serviceDocument: true,
+      metadata: true,
+      databaseListing: true,
+      tableListing: true,
+      recordCRUD: true,
+      recordReferences: true,
+      crossJoin: true,
+      batch: true,
+      scripts: true,
+      scriptsByFMSID: false,
+      scriptListing: false,
+      containerBinaryUpload: true,
+      containerBase64Upload: true,
+      containerDownload: true,
+      schemaModification: true,
+      webhooks: true,
+      webhookQueryHeaders: true,
+      applyAggregation: true,
+      typeCasting: true,
+      parameterizedFilters: true,
+      immutableIdUrls: false,
+      aiAnnotation: false,
+      serverVersionAnnotation: false,
+      enrichedFMComment: false,
+      authBasic: true,
+      authFMID: true,
+      authOAuth: true
+    },
+    queryOptions: {
+      $filter: true,
+      $select: true,
+      $orderby: true,
+      $top: true,
+      $skip: true,
+      $expand: true,
+      $count: true,
+      $apply: true,
+      $search: false,
+      $compute: false
+    }
+  },
+  "26": {
+    major: "26",
+    name: "Claris FileMaker 2026",
+    releaseYear: 2026,
+    internalVersion: "26.x",
+    status: "current",
+    features: {
+      serviceDocument: true,
+      metadata: true,
+      databaseListing: true,
+      tableListing: true,
+      recordCRUD: true,
+      recordReferences: true,
+      crossJoin: true,
+      batch: true,
+      scripts: true,
+      scriptsByFMSID: true,
+      scriptListing: true,
+      containerBinaryUpload: true,
+      containerBase64Upload: true,
+      containerDownload: true,
+      schemaModification: true,
+      webhooks: true,
+      webhookQueryHeaders: true,
+      applyAggregation: true,
+      typeCasting: true,
+      parameterizedFilters: true,
+      immutableIdUrls: true,
+      aiAnnotation: true,
+      serverVersionAnnotation: true,
+      enrichedFMComment: true,
+      authBasic: true,
+      authFMID: true,
+      authOAuth: true
+    },
+    queryOptions: {
+      $filter: true,
+      $select: true,
+      $orderby: true,
+      $top: true,
+      $skip: true,
+      $expand: true,
+      $count: true,
+      $apply: true,
+      $search: false,
+      $compute: false
+    }
+  },
+  future: {
+    major: "future",
+    name: "Future / next",
+    releaseYear: null,
+    internalVersion: "unknown",
+    status: "future",
+    features: {
+      serviceDocument: true,
+      metadata: true,
+      databaseListing: true,
+      tableListing: true,
+      recordCRUD: true,
+      recordReferences: true,
+      crossJoin: true,
+      batch: true,
+      scripts: true,
+      scriptsByFMSID: true,
+      scriptListing: true,
+      containerBinaryUpload: true,
+      containerBase64Upload: true,
+      containerDownload: true,
+      schemaModification: true,
+      webhooks: true,
+      webhookQueryHeaders: true,
+      applyAggregation: true,
+      typeCasting: true,
+      parameterizedFilters: true,
+      immutableIdUrls: true,
+      aiAnnotation: true,
+      serverVersionAnnotation: true,
+      enrichedFMComment: true,
+      authBasic: true,
+      authFMID: true,
+      authOAuth: true
+    },
+    queryOptions: {
+      $filter: true,
+      $select: true,
+      $orderby: true,
+      $top: true,
+      $skip: true,
+      $expand: true,
+      $count: true,
+      $apply: true,
+      $search: false,
+      $compute: false
+    }
+  }
+};
+function hasFeature(version, feature) {
+  return FM_VERSION_MATRIX[version]?.features[feature] ?? false;
+}
+function hasQueryOption(version, option) {
+  return FM_VERSION_MATRIX[version]?.queryOptions[option] ?? false;
+}
+function minVersionForFeature(feature) {
+  const order = ["19", "21", "22", "26"];
+  for (const v of order) {
+    if (FM_VERSION_MATRIX[v].features[feature])
+      return v;
+  }
+  return null;
+}
+
+// node_modules/@fm-odata/spec-ts/dist/metadata.js
+function parseVersionString(raw) {
+  const m = raw.trim().match(/(\d+)\.(\d+)\.(\d+)/);
+  if (!m)
+    return null;
+  return {
+    major: parseInt(m[1], 10),
+    minor: parseInt(m[2], 10),
+    patch: parseInt(m[3], 10),
+    raw: raw.trim()
+  };
+}
+function parseServerVersion(metadataXml) {
+  if (!metadataXml || typeof metadataXml !== "string")
+    return null;
+  const annotationMatch = metadataXml.match(/Term\s*=\s*["']Org\.OData\.Core\.V1\.ProductVersion["'][^>]*String\s*=\s*["']([^"']+)["']/);
+  if (annotationMatch) {
+    const v = parseVersionString(annotationMatch[1]);
+    if (v)
+      return v;
+  }
+  const annotationMatchRev = metadataXml.match(/String\s*=\s*["']([^"']+)["'][^>]*Term\s*=\s*["']Org\.OData\.Core\.V1\.ProductVersion["']/);
+  if (annotationMatchRev) {
+    const v = parseVersionString(annotationMatchRev[1]);
+    if (v)
+      return v;
+  }
+  const serverVersionMatch = metadataXml.match(/Term\s*=\s*["']ServerVersion["'][^>]*String\s*=\s*["']([^"']+)["']/i);
+  if (serverVersionMatch) {
+    const v = parseVersionString(serverVersionMatch[1]);
+    if (v && v.major >= 17)
+      return v;
+  }
+  const serverVersionMatchRev = metadataXml.match(/String\s*=\s*["']([^"']+)["'][^>]*Term\s*=\s*["']ServerVersion["']/i);
+  if (serverVersionMatchRev) {
+    const v = parseVersionString(serverVersionMatchRev[1]);
+    if (v && v.major >= 17)
+      return v;
+  }
+  const genericMatch = metadataXml.match(/Term\s*=\s*["'][^"']*Version[^"']*["'][^>]*String\s*=\s*["'][^"']*?(\d{2,}\.\d+\.\d+(?:\.\d+)?)[^"']*?["']/i);
+  if (genericMatch) {
+    const v = parseVersionString(genericMatch[1]);
+    if (v && v.major >= 17)
+      return v;
+  }
+  return null;
+}
+
 // src/metadata.ts
 function parseBoolAttr(value, defaultValue) {
   if (value === void 0) return defaultValue;
@@ -622,16 +936,8 @@ function parseEntitySet(xml) {
     entityType: attrs.EntityType ?? ""
   };
 }
-function extractProductVersion(xml) {
-  const attrMatch = xml.match(
-    /<Annotation\s+Term="Org\.OData\.Core\.V1\.ProductVersion"\s+String="([^"]+)"/i
-  );
-  if (attrMatch?.[1]) return attrMatch[1];
-  const childMatch = xml.match(
-    /<Annotation\s+Term="Org\.OData\.Core\.V1\.ProductVersion"[^>]*>\s*<String>([^<]+)<\/String>/i
-  );
-  if (childMatch?.[1]) return childMatch[1].trim();
-  return void 0;
+function extractServerVersion(xml) {
+  return parseServerVersion(xml) ?? void 0;
 }
 function parseAction(xml) {
   const name = getAttr(xml, "Name") ?? "";
@@ -676,7 +982,7 @@ function parseMetadata(xml) {
     for (const a of findElements(schemaInner, "Action")) {
       actions.push(parseAction(a));
     }
-    const productVersion = extractProductVersion(xml);
+    const serverVersion = extractServerVersion(xml);
     const result = {
       namespace,
       entityTypes,
@@ -684,7 +990,10 @@ function parseMetadata(xml) {
       actions,
       raw: xml
     };
-    if (productVersion !== void 0) result.productVersion = productVersion;
+    if (serverVersion) {
+      result.serverVersion = serverVersion;
+      result.productVersion = serverVersion.raw;
+    }
     return result;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -1633,272 +1942,6 @@ function serializeOptions(s, opts) {
   return pairs.map(([k, v]) => `${k}=${v}`).join(";");
 }
 
-// node_modules/@fm-odata/spec-ts/dist/versions.js
-var FM_VERSION_NAMES = {
-  "19": "FileMaker 19.x",
-  "21": "Claris FileMaker 2023",
-  "22": "Claris FileMaker 2024",
-  "26": "Claris FileMaker 2026",
-  future: "Future / next"
-};
-var ODATA_PROTOCOL_VERSION = "4.0";
-var FM_VERSION_MATRIX = {
-  "19": {
-    major: "19",
-    name: "FileMaker 19.x",
-    releaseYear: null,
-    internalVersion: "19.x",
-    status: "baseline",
-    features: {
-      serviceDocument: true,
-      metadata: true,
-      databaseListing: true,
-      tableListing: true,
-      recordCRUD: true,
-      recordReferences: true,
-      crossJoin: true,
-      batch: true,
-      scripts: true,
-      scriptsByFMSID: false,
-      scriptListing: false,
-      containerBinaryUpload: true,
-      containerBase64Upload: true,
-      containerDownload: true,
-      schemaModification: true,
-      webhooks: false,
-      webhookQueryHeaders: false,
-      applyAggregation: false,
-      typeCasting: false,
-      parameterizedFilters: false,
-      immutableIdUrls: false,
-      aiAnnotation: false,
-      serverVersionAnnotation: false,
-      enrichedFMComment: false,
-      authBasic: true,
-      authFMID: false,
-      authOAuth: false
-    },
-    queryOptions: {
-      $filter: true,
-      $select: true,
-      $orderby: true,
-      $top: true,
-      $skip: true,
-      $expand: true,
-      $count: true,
-      $apply: false,
-      $search: false,
-      $compute: false
-    }
-  },
-  "21": {
-    major: "21",
-    name: "Claris FileMaker 2023",
-    releaseYear: 2023,
-    internalVersion: "21.x",
-    status: "supported",
-    features: {
-      serviceDocument: true,
-      metadata: true,
-      databaseListing: true,
-      tableListing: true,
-      recordCRUD: true,
-      recordReferences: true,
-      crossJoin: true,
-      batch: true,
-      scripts: true,
-      scriptsByFMSID: false,
-      scriptListing: false,
-      containerBinaryUpload: true,
-      containerBase64Upload: true,
-      containerDownload: true,
-      schemaModification: true,
-      webhooks: true,
-      webhookQueryHeaders: false,
-      applyAggregation: false,
-      typeCasting: true,
-      parameterizedFilters: true,
-      immutableIdUrls: false,
-      aiAnnotation: false,
-      serverVersionAnnotation: false,
-      enrichedFMComment: false,
-      authBasic: true,
-      authFMID: true,
-      authOAuth: true
-    },
-    queryOptions: {
-      $filter: true,
-      $select: true,
-      $orderby: true,
-      $top: true,
-      $skip: true,
-      $expand: true,
-      $count: true,
-      $apply: false,
-      $search: false,
-      $compute: false
-    }
-  },
-  "22": {
-    major: "22",
-    name: "Claris FileMaker 2024",
-    releaseYear: 2024,
-    internalVersion: "22.x",
-    status: "supported",
-    features: {
-      serviceDocument: true,
-      metadata: true,
-      databaseListing: true,
-      tableListing: true,
-      recordCRUD: true,
-      recordReferences: true,
-      crossJoin: true,
-      batch: true,
-      scripts: true,
-      scriptsByFMSID: false,
-      scriptListing: false,
-      containerBinaryUpload: true,
-      containerBase64Upload: true,
-      containerDownload: true,
-      schemaModification: true,
-      webhooks: true,
-      webhookQueryHeaders: true,
-      applyAggregation: true,
-      typeCasting: true,
-      parameterizedFilters: true,
-      immutableIdUrls: false,
-      aiAnnotation: false,
-      serverVersionAnnotation: false,
-      enrichedFMComment: false,
-      authBasic: true,
-      authFMID: true,
-      authOAuth: true
-    },
-    queryOptions: {
-      $filter: true,
-      $select: true,
-      $orderby: true,
-      $top: true,
-      $skip: true,
-      $expand: true,
-      $count: true,
-      $apply: true,
-      $search: false,
-      $compute: false
-    }
-  },
-  "26": {
-    major: "26",
-    name: "Claris FileMaker 2026",
-    releaseYear: 2026,
-    internalVersion: "26.x",
-    status: "current",
-    features: {
-      serviceDocument: true,
-      metadata: true,
-      databaseListing: true,
-      tableListing: true,
-      recordCRUD: true,
-      recordReferences: true,
-      crossJoin: true,
-      batch: true,
-      scripts: true,
-      scriptsByFMSID: true,
-      scriptListing: true,
-      containerBinaryUpload: true,
-      containerBase64Upload: true,
-      containerDownload: true,
-      schemaModification: true,
-      webhooks: true,
-      webhookQueryHeaders: true,
-      applyAggregation: true,
-      typeCasting: true,
-      parameterizedFilters: true,
-      immutableIdUrls: true,
-      aiAnnotation: true,
-      serverVersionAnnotation: true,
-      enrichedFMComment: true,
-      authBasic: true,
-      authFMID: true,
-      authOAuth: true
-    },
-    queryOptions: {
-      $filter: true,
-      $select: true,
-      $orderby: true,
-      $top: true,
-      $skip: true,
-      $expand: true,
-      $count: true,
-      $apply: true,
-      $search: false,
-      $compute: false
-    }
-  },
-  future: {
-    major: "future",
-    name: "Future / next",
-    releaseYear: null,
-    internalVersion: "unknown",
-    status: "future",
-    features: {
-      serviceDocument: true,
-      metadata: true,
-      databaseListing: true,
-      tableListing: true,
-      recordCRUD: true,
-      recordReferences: true,
-      crossJoin: true,
-      batch: true,
-      scripts: true,
-      scriptsByFMSID: true,
-      scriptListing: true,
-      containerBinaryUpload: true,
-      containerBase64Upload: true,
-      containerDownload: true,
-      schemaModification: true,
-      webhooks: true,
-      webhookQueryHeaders: true,
-      applyAggregation: true,
-      typeCasting: true,
-      parameterizedFilters: true,
-      immutableIdUrls: true,
-      aiAnnotation: true,
-      serverVersionAnnotation: true,
-      enrichedFMComment: true,
-      authBasic: true,
-      authFMID: true,
-      authOAuth: true
-    },
-    queryOptions: {
-      $filter: true,
-      $select: true,
-      $orderby: true,
-      $top: true,
-      $skip: true,
-      $expand: true,
-      $count: true,
-      $apply: true,
-      $search: false,
-      $compute: false
-    }
-  }
-};
-function hasFeature(version, feature) {
-  return FM_VERSION_MATRIX[version]?.features[feature] ?? false;
-}
-function hasQueryOption(version, option) {
-  return FM_VERSION_MATRIX[version]?.queryOptions[option] ?? false;
-}
-function minVersionForFeature(feature) {
-  const order = ["19", "21", "22", "26"];
-  for (const v of order) {
-    if (FM_VERSION_MATRIX[v].features[feature])
-      return v;
-  }
-  return null;
-}
-
 // src/client.ts
 var FMOData = class {
   constructor(options) {
@@ -1998,8 +2041,9 @@ var FMOData = class {
   }
   /**
    * Detect the FileMaker Server major version by fetching `$metadata` and
-   * extracting the `Org.OData.Core.V1.ProductVersion` annotation. The result
-   * is cached for the lifetime of this `FMOData` instance.
+   * parsing the version annotation using a multi-strategy approach (see
+   * `@fm-odata/spec-ts` `parseServerVersion`). The result is cached for the
+   * lifetime of this `FMOData` instance.
    *
    * Returns the major version string (`'19'`, `'21'`, `'22'`, `'26'`) or
    * `'future'` if the version is newer than the spec knows about. Returns
@@ -2014,22 +2058,39 @@ var FMOData = class {
   async version() {
     if (this._detectedVersion !== void 0) return this._detectedVersion;
     try {
-      const meta = await this.metadata();
-      const raw = meta.productVersion;
-      if (!raw) {
+      const sv = await this.serverVersion();
+      if (!sv) {
         this._detectedVersion = null;
         return null;
       }
-      const match = raw.match(/^(\d+)\./);
-      if (!match) {
-        this._detectedVersion = null;
-        return null;
-      }
-      const major = match[1];
+      const major = String(sv.major);
       this._detectedVersion = major in FM_VERSION_MATRIX ? major : "future";
       return this._detectedVersion;
     } catch {
       this._detectedVersion = null;
+      return null;
+    }
+  }
+  /**
+   * Get the full parsed FileMaker Server version (major, minor, patch, raw)
+   * by fetching `$metadata` and parsing the version annotation. The result is
+   * cached for the lifetime of this `FMOData` instance.
+   *
+   * Returns `null` if the version cannot be determined.
+   *
+   * ```ts
+   * const sv = await db.serverVersion()
+   * if (sv) console.log(`Server is ${sv.raw} (major ${sv.major})`)
+   * ```
+   */
+  async serverVersion() {
+    if (this._detectedServerVersion !== void 0) return this._detectedServerVersion;
+    try {
+      const meta = await this.metadata();
+      this._detectedServerVersion = meta.serverVersion ?? null;
+      return this._detectedServerVersion;
+    } catch {
+      this._detectedServerVersion = null;
       return null;
     }
   }
@@ -2121,6 +2182,8 @@ export {
   isFMODataError,
   isFMScriptError,
   minVersionForFeature,
+  parseServerVersion,
+  parseVersionString,
   sniffContainerMime,
   toBase64
 };

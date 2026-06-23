@@ -12,6 +12,7 @@
 import { FMODataError } from './errors.js'
 import { executeRequest, type HttpClientContext } from './http.js'
 import type { RequestOptions } from './types.js'
+import { parseServerVersion, type FMServerVersion } from '@fm-odata/spec-ts'
 
 /** Property on an entity type (field in FileMaker). */
 export interface EdmProperty {
@@ -50,6 +51,8 @@ export interface ODataMetadata {
   actions: EdmAction[]
   /** Product version string extracted from Org.OData.Core.V1.ProductVersion annotation (if present). */
   productVersion?: string
+  /** Full parsed server version (major.minor.patch + raw), if detected from $metadata. */
+  serverVersion?: FMServerVersion
   /** Original XML, for debugging and forward compatibility. */
   raw: string
 }
@@ -204,30 +207,20 @@ function parseEntitySet(xml: string): EdmEntitySet {
 }
 
 /**
- * @internal — extract the Org.OData.Core.V1.ProductVersion String attribute
- * from the metadata XML. FMS includes this annotation on the EntityContainer
- * or Schema element. Returns undefined if not found.
+ * @internal — extract the FileMaker Server version from the metadata XML using
+ * the multi-strategy parser from @fm-odata/spec-ts.
  *
- * Example XML:
- *   <Annotation Term="Org.OData.Core.V1.ProductVersion" String="19.0.1" />
- *   <Annotation Term="Org.OData.Core.V1.ProductVersion">
- *     <String>22.0.1</String>
- *   </Annotation>
+ * Detection strategies (in priority order):
+ * 1a. Org.OData.Core.V1.ProductVersion annotation with String attribute
+ * 1b. Same as 1a but with reversed attribute order
+ * 1c. ServerVersion annotation (FM 26+, e.g. "OData Engine 26.0.1")
+ * 1d. Same as 1c but with reversed attribute order
+ * 2.  Generic fallback: any annotation term containing "Version" with major >= 17
+ *
+ * Returns the full FMServerVersion object, or undefined if not found.
  */
-function extractProductVersion(xml: string): string | undefined {
-  // Form 1: String attribute on the Annotation element
-  const attrMatch = xml.match(
-    /<Annotation\s+Term="Org\.OData\.Core\.V1\.ProductVersion"\s+String="([^"]+)"/i,
-  )
-  if (attrMatch?.[1]) return attrMatch[1]
-
-  // Form 2: <String> child element
-  const childMatch = xml.match(
-    /<Annotation\s+Term="Org\.OData\.Core\.V1\.ProductVersion"[^>]*>\s*<String>([^<]+)<\/String>/i,
-  )
-  if (childMatch?.[1]) return childMatch[1].trim()
-
-  return undefined
+function extractServerVersion(xml: string): FMServerVersion | undefined {
+  return parseServerVersion(xml) ?? undefined
 }
 
 /** @internal — parse <Action Name="...">[...parameters...]</Action> */
@@ -291,10 +284,10 @@ export function parseMetadata(xml: string): ODataMetadata {
       actions.push(parseAction(a))
     }
 
-    // Extract product version from Org.OData.Core.V1.ProductVersion annotation.
-    // FMS includes this as an <Annotation Term="Org.OData.Core.V1.ProductVersion" String="19.0.1" />
-    // on the EntityContainer or Schema element.
-    const productVersion = extractProductVersion(xml)
+    // Extract server version using the multi-strategy parser from @fm-odata/spec-ts.
+    // Handles ProductVersion, ServerVersion (FM 26+), reversed attribute order,
+    // and a generic fallback for non-standard annotation terms.
+    const serverVersion = extractServerVersion(xml)
 
     const result: ODataMetadata = {
       namespace,
@@ -303,7 +296,11 @@ export function parseMetadata(xml: string): ODataMetadata {
       actions,
       raw: xml,
     }
-    if (productVersion !== undefined) result.productVersion = productVersion
+    if (serverVersion) {
+      result.serverVersion = serverVersion
+      // Keep productVersion for backward compatibility (raw string only)
+      result.productVersion = serverVersion.raw
+    }
     return result
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

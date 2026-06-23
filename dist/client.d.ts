@@ -4,7 +4,7 @@ import { type MetadataOptions, type ODataMetadata } from './metadata.js';
 import { Query } from './query.js';
 import { type ScriptOptions, type ScriptResult } from './scripts.js';
 import type { FMODataOptions, RequestOptions } from './types.js';
-import { type FMVersionMajor, type FMVersionInfo, type FMFeatureFlags } from '@fm-odata/spec-ts';
+import { type FMVersionMajor, type FMVersionInfo, type FMFeatureFlags, type FMServerVersion } from '@fm-odata/spec-ts';
 /**
  * `FMOData` is the entrypoint for all OData operations against a FileMaker
  * Server database. Covers query/CRUD, script invocation, container I/O,
@@ -76,10 +76,12 @@ export declare class FMOData {
      */
     metadataXml(opts?: RequestOptions): Promise<string>;
     /** @internal */ private _detectedVersion;
+    /** @internal */ private _detectedServerVersion;
     /**
      * Detect the FileMaker Server major version by fetching `$metadata` and
-     * extracting the `Org.OData.Core.V1.ProductVersion` annotation. The result
-     * is cached for the lifetime of this `FMOData` instance.
+     * parsing the version annotation using a multi-strategy approach (see
+     * `@fm-odata/spec-ts` `parseServerVersion`). The result is cached for the
+     * lifetime of this `FMOData` instance.
      *
      * Returns the major version string (`'19'`, `'21'`, `'22'`, `'26'`) or
      * `'future'` if the version is newer than the spec knows about. Returns
@@ -92,6 +94,19 @@ export declare class FMOData {
      * ```
      */
     version(): Promise<FMVersionMajor | null>;
+    /**
+     * Get the full parsed FileMaker Server version (major, minor, patch, raw)
+     * by fetching `$metadata` and parsing the version annotation. The result is
+     * cached for the lifetime of this `FMOData` instance.
+     *
+     * Returns `null` if the version cannot be determined.
+     *
+     * ```ts
+     * const sv = await db.serverVersion()
+     * if (sv) console.log(`Server is ${sv.raw} (major ${sv.major})`)
+     * ```
+     */
+    serverVersion(): Promise<FMServerVersion | null>;
     /**
      * Get the full version info (feature flags + query option flags) for the
      * detected server version. Fetches metadata if not already cached.

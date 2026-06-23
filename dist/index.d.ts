@@ -18,6 +18,6 @@ export { ScriptInvoker } from './scripts.js';
 export type { ScriptOptions, ScriptResult, ScriptScope, ScriptIdentifier } from './scripts.js';
 export type { FMODataOptions, TokenProvider, RequestOptions } from './types.js';
 export type { ODataLiteral } from './url.js';
-export { FM_VERSION_NAMES, FM_VERSION_MATRIX, ODATA_PROTOCOL_VERSION, hasFeature, hasQueryOption, minVersionForFeature, } from '@fm-odata/spec-ts';
-export type { FMVersionMajor, FMVersionStatus, FMFeatureFlags, FMQueryOptionFlags, FMVersionInfo, } from '@fm-odata/spec-ts';
+export { FM_VERSION_NAMES, FM_VERSION_MATRIX, ODATA_PROTOCOL_VERSION, hasFeature, hasQueryOption, minVersionForFeature, parseServerVersion, parseVersionString, } from '@fm-odata/spec-ts';
+export type { FMVersionMajor, FMVersionStatus, FMFeatureFlags, FMQueryOptionFlags, FMVersionInfo, FMServerVersion, } from '@fm-odata/spec-ts';
 //# sourceMappingURL=index.d.ts.map

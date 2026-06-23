@@ -10,6 +10,7 @@
  */
 import { type HttpClientContext } from './http.js';
 import type { RequestOptions } from './types.js';
+import { type FMServerVersion } from '@fm-odata/spec-ts';
 /** Property on an entity type (field in FileMaker). */
 export interface EdmProperty {
     name: string;
@@ -50,6 +51,8 @@ export interface ODataMetadata {
     actions: EdmAction[];
     /** Product version string extracted from Org.OData.Core.V1.ProductVersion annotation (if present). */
     productVersion?: string;
+    /** Full parsed server version (major.minor.patch + raw), if detected from $metadata. */
+    serverVersion?: FMServerVersion;
     /** Original XML, for debugging and forward compatibility. */
     raw: string;
 }

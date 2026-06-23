@@ -53,6 +53,8 @@ export {
   hasFeature,
   hasQueryOption,
   minVersionForFeature,
+  parseServerVersion,
+  parseVersionString,
 } from '@fm-odata/spec-ts'
 export type {
   FMVersionMajor,
@@ -60,4 +62,5 @@ export type {
   FMFeatureFlags,
   FMQueryOptionFlags,
   FMVersionInfo,
+  FMServerVersion,
 } from '@fm-odata/spec-ts'

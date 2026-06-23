@@ -188,3 +188,127 @@ describe('FMOData hasFeature', () => {
     expect(await db.hasFeature('applyAggregation')).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Multi-strategy version detection (aligned with FMS-ODATA-MCP fm-version.ts)
+// ---------------------------------------------------------------------------
+
+/** Metadata with reversed attribute order (String before Term). */
+function metadataWithReversedVersion(version: string): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:DataServices>
+    <Schema Namespace="FMI" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <EntityContainer Name="Container">
+        <Annotation String="${version}" Term="Org.OData.Core.V1.ProductVersion" />
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>`
+}
+
+/** Metadata with ServerVersion annotation (FM 26+ format). */
+function metadataWithServerVersion(version: string): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:DataServices>
+    <Schema Namespace="FMI" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <EntityContainer Name="Container">
+        <Annotation Term="ServerVersion" String="OData Engine ${version}" />
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>`
+}
+
+/** Metadata with ServerVersion annotation and reversed attribute order. */
+function metadataWithServerVersionReversed(version: string): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:DataServices>
+    <Schema Namespace="FMI" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <EntityContainer Name="Container">
+        <Annotation String="OData Engine ${version}" Term="ServerVersion" />
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>`
+}
+
+describe('FMOData multi-strategy version detection', () => {
+  it('detects version from reversed attribute order (String before Term)', async () => {
+    const db = makeClientWithMetadata(metadataWithReversedVersion('21.1.2.500'))
+    expect(await db.version()).toBe('21')
+  })
+
+  it('detects version from ServerVersion annotation (FM 26+)', async () => {
+    const db = makeClientWithMetadata(metadataWithServerVersion('26.0.1'))
+    expect(await db.version()).toBe('26')
+  })
+
+  it('detects version from ServerVersion with reversed attribute order', async () => {
+    const db = makeClientWithMetadata(metadataWithServerVersionReversed('26.0.1'))
+    expect(await db.version()).toBe('26')
+  })
+
+  it('detects version with build suffix (e.g. 21.1.2.500)', async () => {
+    const db = makeClientWithMetadata(metadataWithVersion('21.1.2.500'))
+    expect(await db.version()).toBe('21')
+  })
+
+  it('serverVersion() returns full parsed version object', async () => {
+    const db = makeClientWithMetadata(metadataWithVersion('22.0.1.100'))
+    const sv = await db.serverVersion()
+    expect(sv).not.toBeNull()
+    expect(sv!.major).toBe(22)
+    expect(sv!.minor).toBe(0)
+    expect(sv!.patch).toBe(1)
+    expect(sv!.raw).toBe('22.0.1.100')
+  })
+
+  it('serverVersion() returns full version from ServerVersion annotation', async () => {
+    const db = makeClientWithMetadata(metadataWithServerVersion('26.0.1'))
+    const sv = await db.serverVersion()
+    expect(sv).not.toBeNull()
+    expect(sv!.major).toBe(26)
+    expect(sv!.minor).toBe(0)
+    expect(sv!.patch).toBe(1)
+  })
+
+  it('serverVersion() returns null when no version annotation is present', async () => {
+    const db = makeClientWithMetadata(METADATA_NO_VERSION)
+    expect(await db.serverVersion()).toBeNull()
+  })
+
+  it('metadata.serverVersion is populated and productVersion is backward-compatible', async () => {
+    const db = makeClientWithMetadata(metadataWithVersion('19.6.0.123'))
+    const meta = await db.metadata()
+    expect(meta.serverVersion).toBeDefined()
+    expect(meta.serverVersion!.major).toBe(19)
+    expect(meta.serverVersion!.raw).toBe('19.6.0.123')
+    // productVersion should still be set for backward compat
+    expect(meta.productVersion).toBe('19.6.0.123')
+  })
+
+  it('caches serverVersion across calls', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(metadataWithServerVersion('26.0.1'), {
+        status: 200,
+        headers: { 'content-type': 'application/xml' },
+      }),
+    )
+    const db = new FMOData({
+      host: 'https://fms.example.com',
+      database: 'Test',
+      token: 'xxx',
+      fetch: fetchMock as unknown as typeof globalThis.fetch,
+    })
+
+    await db.serverVersion()
+    await db.serverVersion()
+    await db.version()
+
+    // $metadata should only be fetched once (cached)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})

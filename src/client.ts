@@ -8,6 +8,7 @@ import {
   type FMVersionMajor,
   type FMVersionInfo,
   type FMFeatureFlags,
+  type FMServerVersion,
   FM_VERSION_MATRIX,
   hasFeature as specHasFeature,
 } from '@fm-odata/spec-ts'
@@ -136,11 +137,13 @@ export class FMOData {
   // -------------------------------------------------------------------------
 
   /** @internal */ private _detectedVersion: FMVersionMajor | null | undefined
+  /** @internal */ private _detectedServerVersion: FMServerVersion | null | undefined
 
   /**
    * Detect the FileMaker Server major version by fetching `$metadata` and
-   * extracting the `Org.OData.Core.V1.ProductVersion` annotation. The result
-   * is cached for the lifetime of this `FMOData` instance.
+   * parsing the version annotation using a multi-strategy approach (see
+   * `@fm-odata/spec-ts` `parseServerVersion`). The result is cached for the
+   * lifetime of this `FMOData` instance.
    *
    * Returns the major version string (`'19'`, `'21'`, `'22'`, `'26'`) or
    * `'future'` if the version is newer than the spec knows about. Returns
@@ -155,23 +158,41 @@ export class FMOData {
   async version(): Promise<FMVersionMajor | null> {
     if (this._detectedVersion !== undefined) return this._detectedVersion
     try {
-      const meta = await this.metadata()
-      const raw = meta.productVersion
-      if (!raw) {
+      const sv = await this.serverVersion()
+      if (!sv) {
         this._detectedVersion = null
         return null
       }
-      const match = raw.match(/^(\d+)\./)
-      if (!match) {
-        this._detectedVersion = null
-        return null
-      }
-      const major = match[1] as FMVersionMajor
+      const major = String(sv.major) as FMVersionMajor
       // If the version is known in the spec matrix, use it; otherwise 'future'.
       this._detectedVersion = major in FM_VERSION_MATRIX ? major : 'future'
       return this._detectedVersion
     } catch {
       this._detectedVersion = null
+      return null
+    }
+  }
+
+  /**
+   * Get the full parsed FileMaker Server version (major, minor, patch, raw)
+   * by fetching `$metadata` and parsing the version annotation. The result is
+   * cached for the lifetime of this `FMOData` instance.
+   *
+   * Returns `null` if the version cannot be determined.
+   *
+   * ```ts
+   * const sv = await db.serverVersion()
+   * if (sv) console.log(`Server is ${sv.raw} (major ${sv.major})`)
+   * ```
+   */
+  async serverVersion(): Promise<FMServerVersion | null> {
+    if (this._detectedServerVersion !== undefined) return this._detectedServerVersion
+    try {
+      const meta = await this.metadata()
+      this._detectedServerVersion = meta.serverVersion ?? null
+      return this._detectedServerVersion
+    } catch {
+      this._detectedServerVersion = null
       return null
     }
   }

@@ -39,6 +39,8 @@ export type { FilterFactory, FilterInput, OrderDir, QueryResult } from './query.
 export type { AggregateFunction } from '@fms-odata/spec-ts'
 export { ScriptInvoker } from './scripts.js'
 export type { ScriptOptions, ScriptResult, ScriptScope, ScriptIdentifier } from './scripts.js'
+export { SchemaEditor } from './schema.js'
+export type { SchemaOptions, DeleteSchemaOptions } from './schema.js'
 export { WebhookManager } from './webhooks.js'
 export type { WebhookOptions } from './webhooks.js'
 export type { FMSODataOptions, TokenProvider, RequestOptions } from './types.js'
@@ -65,6 +67,16 @@ export type {
   FMQueryOptionFlags,
   FMVersionInfo,
   FMServerVersion,
+} from '@fms-odata/spec-ts'
+
+// Schema (DDL) types from @fms-odata/spec-ts
+export { FIELD_TYPES, FIELD_DEFAULTS, parseFieldType } from '@fms-odata/spec-ts'
+export type {
+  FMFieldType,
+  FMFieldDefault,
+  FMFieldDefinition,
+  CreateTableParams,
+  AddFieldsParams,
 } from '@fms-odata/spec-ts'
 
 // Webhook types from @fms-odata/spec-ts

@@ -1951,6 +1951,122 @@ function serializeOptions(s, opts) {
   return pairs.map(([k, v]) => `${k}=${v}`).join(";");
 }
 
+// src/webhooks.ts
+function normalizeCreateParams(params) {
+  const out = {
+    webhook: params.webhook,
+    tableName: params.tableName
+  };
+  if (params.endpointHeaders) out.endpointHeaders = params.endpointHeaders;
+  if (params.headers && !params.endpointHeaders) out.endpointHeaders = params.headers;
+  if (params.queryHeaders) out.queryHeaders = params.queryHeaders;
+  if (params.notifySchemaChanges !== void 0) out.notifySchemaChanges = params.notifySchemaChanges;
+  if (params.select) out.select = params.select;
+  if (params.filter) out.filter = params.filter;
+  if (params.maxFailedAttempts !== void 0) out.maxFailedAttempts = params.maxFailedAttempts;
+  return out;
+}
+var WebhookManager = class {
+  constructor(client) {
+    this._client = client;
+  }
+  /** Build the URL for a webhook operation. */
+  _url(operation) {
+    return `${this._client.baseUrl}/Webhook.${operation}`;
+  }
+  /**
+   * Create a webhook.
+   *
+   * ```ts
+   * await db.webhooks().create({
+   *   webhook: 'https://my.example.com:8080/webhook',
+   *   tableName: 'contact',
+   *   select: 'id,first_name',
+   *   filter: "status eq 'active'",
+   *   notifySchemaChanges: true,
+   * })
+   * ```
+   */
+  async create(params, opts = {}) {
+    if (!params.webhook) throw new TypeError("WebhookManager: `webhook` URL is required");
+    if (!params.tableName) throw new TypeError("WebhookManager: `tableName` is required");
+    const body = JSON.stringify(normalizeCreateParams(params));
+    return executeJson(this._client._ctx, this._url("Add"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      accept: "json",
+      ...opts.signal ? { signal: opts.signal } : {}
+    });
+  }
+  /**
+   * Remove (delete) a webhook by its ID.
+   *
+   * ```ts
+   * await db.webhooks().remove('abc123')
+   * ```
+   */
+  async remove(id, opts = {}) {
+    if (!id) throw new TypeError("WebhookManager: webhook `id` is required");
+    return executeJson(this._client._ctx, this._url("Remove"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+      accept: "json",
+      ...opts.signal ? { signal: opts.signal } : {}
+    });
+  }
+  /**
+   * Get a specific webhook's data by ID.
+   *
+   * ```ts
+   * const data = await db.webhooks().get('abc123')
+   * ```
+   */
+  async get(id, opts = {}) {
+    if (!id) throw new TypeError("WebhookManager: webhook `id` is required");
+    return executeJson(this._client._ctx, this._url("Get"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+      accept: "json",
+      ...opts.signal ? { signal: opts.signal } : {}
+    });
+  }
+  /**
+   * List all webhooks.
+   *
+   * ```ts
+   * const result = await db.webhooks().getAll()
+   * ```
+   */
+  async getAll(opts = {}) {
+    return executeJson(this._client._ctx, this._url("GetAll"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      accept: "json",
+      ...opts.signal ? { signal: opts.signal } : {}
+    });
+  }
+  /**
+   * Manually invoke (trigger) a webhook by ID. Useful for testing.
+   *
+   * ```ts
+   * await db.webhooks().invoke('abc123')
+   * ```
+   */
+  async invoke(id, opts = {}) {
+    if (!id) throw new TypeError("WebhookManager: webhook `id` is required");
+    return executeJson(this._client._ctx, this._url("Invoke"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+      accept: "json",
+      ...opts.signal ? { signal: opts.signal } : {}
+    });
+  }
+};
+
 // src/client.ts
 var FMSOData = class {
   constructor(options) {
@@ -2139,6 +2255,38 @@ var FMSOData = class {
     return hasFeature(v, feature);
   }
   /**
+   * Get a `WebhookManager` handle for webhook CRUD operations (create, remove,
+   * get, getAll, invoke). Requires FileMaker Server 2023+ (v21).
+   *
+   * ```ts
+   * await db.webhooks().create({ webhook: 'https://...', tableName: 'contact' })
+   * ```
+   */
+  webhooks() {
+    if (!this._webhookManager) this._webhookManager = new WebhookManager(this);
+    return this._webhookManager;
+  }
+  /** Convenience: create a webhook. See {@link WebhookManager#create}. */
+  async createWebhook(params, opts = {}) {
+    return this.webhooks().create(params, opts);
+  }
+  /** Convenience: remove a webhook by ID. See {@link WebhookManager#remove}. */
+  async removeWebhook(id, opts = {}) {
+    return this.webhooks().remove(id, opts);
+  }
+  /** Convenience: get a webhook by ID. See {@link WebhookManager#get}. */
+  async getWebhook(id, opts = {}) {
+    return this.webhooks().get(id, opts);
+  }
+  /** Convenience: list all webhooks. See {@link WebhookManager#getAll}. */
+  async getAllWebhooks(opts = {}) {
+    return this.webhooks().getAll(opts);
+  }
+  /** Convenience: manually invoke a webhook by ID. See {@link WebhookManager#invoke}. */
+  async invokeWebhook(id, opts = {}) {
+    return this.webhooks().invoke(id, opts);
+  }
+  /**
    * Create a new `$batch` builder for composing multiple OData operations
    * into a single HTTP round-trip.
    *
@@ -2184,6 +2332,7 @@ export {
   ODATA_PROTOCOL_VERSION,
   Query,
   ScriptInvoker,
+  WebhookManager,
   basicAuth,
   buildContainerJsonBody,
   filterFactory,

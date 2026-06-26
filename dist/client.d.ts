@@ -4,6 +4,7 @@ import { type MetadataOptions, type ODataMetadata } from './metadata.js';
 import { Query } from './query.js';
 import { type ScriptOptions, type ScriptResult } from './scripts.js';
 import type { FMSODataOptions, RequestOptions } from './types.js';
+import { WebhookManager, type WebhookOptions } from './webhooks.js';
 import { type FMVersionMajor, type FMVersionInfo, type FMFeatureFlags, type FMServerVersion } from '@fms-odata/spec-ts';
 /**
  * `FMSOData` is the entrypoint for all OData operations against a FileMaker
@@ -134,6 +135,26 @@ export declare class FMSOData {
      * ```
      */
     hasFeature(feature: keyof FMFeatureFlags): Promise<boolean>;
+    /** @internal */ private _webhookManager?;
+    /**
+     * Get a `WebhookManager` handle for webhook CRUD operations (create, remove,
+     * get, getAll, invoke). Requires FileMaker Server 2023+ (v21).
+     *
+     * ```ts
+     * await db.webhooks().create({ webhook: 'https://...', tableName: 'contact' })
+     * ```
+     */
+    webhooks(): WebhookManager;
+    /** Convenience: create a webhook. See {@link WebhookManager#create}. */
+    createWebhook(params: import('@fms-odata/spec-ts').WebhookCreateParams, opts?: WebhookOptions): Promise<unknown>;
+    /** Convenience: remove a webhook by ID. See {@link WebhookManager#remove}. */
+    removeWebhook(id: string, opts?: WebhookOptions): Promise<unknown>;
+    /** Convenience: get a webhook by ID. See {@link WebhookManager#get}. */
+    getWebhook(id: string, opts?: WebhookOptions): Promise<unknown>;
+    /** Convenience: list all webhooks. See {@link WebhookManager#getAll}. */
+    getAllWebhooks(opts?: WebhookOptions): Promise<unknown>;
+    /** Convenience: manually invoke a webhook by ID. See {@link WebhookManager#invoke}. */
+    invokeWebhook(id: string, opts?: WebhookOptions): Promise<unknown>;
     /**
      * Create a new `$batch` builder for composing multiple OData operations
      * into a single HTTP round-trip.

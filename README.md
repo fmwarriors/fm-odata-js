@@ -4,12 +4,12 @@
 
 **A tiny, type-safe OData v4 client built for FileMaker Server.**
 
-Zero runtime dependencies · ~9.1 KB gzipped · ESM + IIFE · Web Viewer / Browser / Node 18+
+Zero runtime dependencies · ~9.8 KB gzipped · ESM + IIFE · Web Viewer / Browser / Node 18+
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![OData](https://img.shields.io/badge/OData-v4-0078D4?logo=data&logoColor=white)](https://www.odata.org/)
 [![FileMaker](https://img.shields.io/badge/FileMaker-19.0--26.0-FF6B00?logo=filemaker&logoColor=white)](https://www.claris.com/filemaker/)
-[![Bundle](https://img.shields.io/badge/gzip-~9.1%20KB-brightgreen)](#)
+[![Bundle](https://img.shields.io/badge/gzip-~9.8%20KB-brightgreen)](#)
 [![Deps](https://img.shields.io/badge/runtime%20deps-0-blue)](#)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js&logoColor=white)](#)
 [![License](https://img.shields.io/badge/license-MIT-black)](./LICENSE)
@@ -25,7 +25,7 @@ FileMaker Server speaks OData v4, but the spec has sharp corners and FMS has qui
 
 > **Battle-tested in production.** I've been using this library heavily to let FileMaker Web Viewer instances talk to the *same* hosted database they live in — and the performance has been genuinely impressive. Queries that used to require round-tripping through scripts and set-field loops now resolve in a single OData call, with noticeably lower latency and a much cleaner code path. If you're building rich Web Viewer UIs backed by FMS, this is the fastest route I've found.
 
-- **Tiny.** ESM and IIFE bundles, zero runtime dependencies, ~9.1 KB gzipped.
+- **Tiny.** ESM and IIFE bundles, zero runtime dependencies, ~9.8 KB gzipped.
 - **Type-safe.** Fluent, chainable query builder with full TS inference.
 - **Runs anywhere.** Drop it into a FileMaker Web Viewer, a browser, or Node 18+.
 - **FMS-aware.** Handles the documented FMS OData deviations for you.
@@ -35,6 +35,7 @@ FileMaker Server speaks OData v4, but the spec has sharp corners and FMS has qui
 - **Aggregations.** `$apply` builder for `aggregate()` and `groupBy()` — server-side sum, average, min, max, count (FMS 2024+).
 - **Navigation properties.** Full `$ref` CRUD — `getRefs`, `addRef`, `setRef`, `removeRef` for OData relationship links.
 - **Schema introspection.** `$metadata` parsed into typed `ODataMetadata` with entity types, keys, properties, and actions. Cached by default.
+- **Webhooks.** Create, remove, get, list, and manually invoke webhooks (FMS 2023+ / v21) with typed params and `endpointHeaders` / `queryHeaders` support.
 - **Batch requests.** `$batch` builder composes multiple reads and atomic changesets (POST / PATCH / DELETE) into a single HTTP round-trip.
 - **Multi-auth.** Basic, Bearer, and FMID (FileMaker Cloud / Claris ID) auth with 401 retry, `AbortSignal`, and timeouts built in.
 - **Honest errors.** Every failure becomes a normalized `FMSODataError` (or `FMScriptError` for script failures) with `isFMSODataError` / `isFMScriptError` type guards.
@@ -331,6 +332,40 @@ await db.from('contact').byKey(7).removeRef('addresses', 42)
 await db.from('order').byKey(100).removeRef('customer') // clears single-valued
 ```
 
+## Webhooks
+
+Manage FileMaker Server webhooks — requires FMS 2023+ (v21). Use
+`hasFeature('webhooks')` to check before calling.
+
+```ts
+// Create a webhook that fires on record changes in the contact table
+const result = await db.createWebhook({
+  webhook: 'https://my.example.com:8080/webhook',
+  tableName: 'contact',
+  select: 'id,first_name,last_name',
+  filter: "status eq 'active'",
+  notifySchemaChanges: true,
+  maxFailedAttempts: 10,
+})
+
+// List all webhooks
+const all = await db.getAllWebhooks()
+
+// Get a specific webhook's data
+const data = await db.getWebhook('wh-id')
+
+// Manually invoke a webhook (useful for testing)
+await db.invokeWebhook('wh-id')
+
+// Remove a webhook
+await db.removeWebhook('wh-id')
+```
+
+The `endpointHeaders` / `queryHeaders` split is supported: `endpointHeaders`
+are sent to the webhook URL without affecting processing, while `queryHeaders`
+control how the payload is generated. The legacy `headers` alias for
+`endpointHeaders` is accepted for backward compatibility.
+
 ## Live integration tests
 
 Copy `.env.sample` to `.env` and fill in real FMS credentials:
@@ -363,7 +398,7 @@ FM_LIVE=1 npm test -- tests/integration        # full CRUD against real FMS
 The library ships three bundle formats:
 
 - **ESM** (`dist/fms-odata.esm.js`) — for Node, bundlers, and modern browsers
-- **ESM minified** (`dist/fms-odata.esm.min.js`) — ~9.1 KB gzipped, production use
+- **ESM minified** (`dist/fms-odata.esm.min.js`) — ~9.8 KB gzipped, production use
 - **IIFE** (`dist/fms-odata.iife.min.js`) — global `FMSODataLib`, for FileMaker Web Viewer and `<script>` tag inclusion without a bundler
 
 ## Contributing

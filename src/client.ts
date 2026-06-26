@@ -4,6 +4,7 @@ import { MetadataFetcher, type MetadataOptions, type ODataMetadata } from './met
 import { Query } from './query.js'
 import { runScriptAtDatabase, runScriptByIdAtDatabase, type ScriptOptions, type ScriptResult } from './scripts.js'
 import type { FMSODataOptions, RequestOptions } from './types.js'
+import { WebhookManager, type WebhookOptions } from './webhooks.js'
 import {
   type FMVersionMajor,
   type FMVersionInfo,
@@ -232,6 +233,53 @@ export class FMSOData {
     const v = await this.version()
     if (!v) return false
     return specHasFeature(v, feature)
+  }
+
+  // -------------------------------------------------------------------------
+  // Webhook management (requires FileMaker Server 2023+ / v21)
+  // -------------------------------------------------------------------------
+
+  /** @internal */ private _webhookManager?: WebhookManager
+
+  /**
+   * Get a `WebhookManager` handle for webhook CRUD operations (create, remove,
+   * get, getAll, invoke). Requires FileMaker Server 2023+ (v21).
+   *
+   * ```ts
+   * await db.webhooks().create({ webhook: 'https://...', tableName: 'contact' })
+   * ```
+   */
+  webhooks(): WebhookManager {
+    if (!this._webhookManager) this._webhookManager = new WebhookManager(this)
+    return this._webhookManager
+  }
+
+  /** Convenience: create a webhook. See {@link WebhookManager#create}. */
+  async createWebhook(
+    params: import('@fms-odata/spec-ts').WebhookCreateParams,
+    opts: WebhookOptions = {},
+  ): Promise<unknown> {
+    return this.webhooks().create(params, opts)
+  }
+
+  /** Convenience: remove a webhook by ID. See {@link WebhookManager#remove}. */
+  async removeWebhook(id: string, opts: WebhookOptions = {}): Promise<unknown> {
+    return this.webhooks().remove(id, opts)
+  }
+
+  /** Convenience: get a webhook by ID. See {@link WebhookManager#get}. */
+  async getWebhook(id: string, opts: WebhookOptions = {}): Promise<unknown> {
+    return this.webhooks().get(id, opts)
+  }
+
+  /** Convenience: list all webhooks. See {@link WebhookManager#getAll}. */
+  async getAllWebhooks(opts: WebhookOptions = {}): Promise<unknown> {
+    return this.webhooks().getAll(opts)
+  }
+
+  /** Convenience: manually invoke a webhook by ID. See {@link WebhookManager#invoke}. */
+  async invokeWebhook(id: string, opts: WebhookOptions = {}): Promise<unknown> {
+    return this.webhooks().invoke(id, opts)
   }
 
   /**
